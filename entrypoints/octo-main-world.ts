@@ -120,6 +120,31 @@ export default defineUnlistedScript(() => {
   }
 
   /**
+   * Resolve a sender's display name from a UID. Revoked messages carry a null
+   * `message.from`, so we can't read the name off the revoked message itself.
+   * Instead, scan other rendered rows for a non-revoked message by the same
+   * fromUID and copy its rendered sender name. Returns null if none is found
+   * (caller then leaves the name blank rather than showing a wrong one).
+   */
+  function resolveSenderName(uid: string): string | null {
+    if (!uid) return null;
+    const items = document.querySelectorAll<HTMLElement>(ITEM_SELECTOR);
+    for (const it of items) {
+      const other = getMessageWrapFromItem(it);
+      if (!other || other.revoke === true) continue;
+      const oInner = other.message;
+      if (oInner && oInner.fromUID === uid) {
+        // Prefer the name on the fiber; fall back to the rendered sender text.
+        if (oInner.from && oInner.from.title) return oInner.from.title as string;
+        const s = it.querySelector('.wk-msg-row-sender');
+        const txt = s && s.textContent && s.textContent.trim();
+        if (txt) return txt;
+      }
+    }
+    return null;
+  }
+
+  /**
    * Find a real message row to clone, matching the send/recv side so alignment
    * and colors come out native. Falls back to any row. Never clones one of our
    * own restored rows.
@@ -171,17 +196,22 @@ export default defineUnlistedScript(() => {
     // we normalize to the plain left layout to line up with normal messages.
     clone.classList.remove('wk-msg-row--send', 'wk-msg-row--continue');
 
-    // Avatar
+    // Avatar (always correct — keyed on fromUID)
     const img = clone.querySelector<HTMLImageElement>('.wk-msg-avatar-img');
+    const senderName =
+      (inner.from && inner.from.title) || resolveSenderName(inner.fromUID) || '';
     if (img && inner.fromUID) {
       img.src = `/api/v1/users/${encodeURIComponent(inner.fromUID)}/avatar`;
-      img.alt = (inner.from && inner.from.title) || '';
+      img.alt = senderName;
     }
-    // Sender name
+    // Sender name — revoked messages have a null `from`, so never trust the
+    // cloned donor's name; set the resolved name, or blank it out so we never
+    // show a different person's name on a revoked message.
     const sender = clone.querySelector('.wk-msg-row-sender');
-    if (sender && inner.from && inner.from.title) {
-      sender.textContent = inner.from.title;
-    }
+    if (sender) sender.textContent = senderName;
+    // Strip the donor's AI badge — it reflects the donor's sender, not this
+    // revoked message's, and would falsely tag e.g. a human message as AI.
+    clone.querySelectorAll('.ai-badge').forEach((b) => b.remove());
     // Timestamp
     const ts = clone.querySelector('.wk-msg-row-timestamp');
     if (ts && inner.timestamp) ts.textContent = formatTimestamp(inner.timestamp);
