@@ -2,7 +2,7 @@
   "name": "octo-chat-enhancer",
   "description": "增强 Octo 网页聊天：还原已撤回消息，提供消息美化、全站主题、世界杯特效和球星水印。",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packageManager": "pnpm@10.11.0",
   "type": "module",
   "scripts": {
