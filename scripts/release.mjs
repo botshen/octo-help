@@ -65,6 +65,9 @@ try {
   if (error?.status !== 1) throw error;
 }
 
+run('node', ['scripts/release-notes.mjs', `v${version}`], { capture: true });
+console.log(`已找到 CHANGELOG.md 中的 v${version} 更新说明。`);
+
 run('pnpm', ['compile']);
 run('pnpm', ['version', version, '--no-git-tag-version']);
 

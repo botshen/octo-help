@@ -40,7 +40,15 @@ pnpm build      # 生产构建
 
 ## 发布
 
-发布命令会检查工作区和分支、运行类型检查、构建 ZIP、更新版本号、创建提交和 tag，并推送到 GitHub。GitHub Actions 随后会自动创建 Release 并上传 Chrome ZIP 和 SHA-256 校验文件。
+版本更新记录统一维护在 [`CHANGELOG.md`](./CHANGELOG.md)，Release 页面不会使用提交记录代替用户可读的更新说明。
+
+发布前，先把本次变化整理为目标版本的二级标题，例如 `## [0.2.0] - 2026-08-01`，并提交 `CHANGELOG.md`。可以在本地预览最终 Release 正文：
+
+```bash
+pnpm release:notes v0.2.0
+```
+
+发布命令会检查工作区、分支和对应版本的更新说明，运行类型检查、构建 ZIP、更新版本号、创建提交和 tag，并推送到 GitHub。GitHub Actions 随后会从 `CHANGELOG.md` 提取正文，自动创建 Release，并上传 Chrome ZIP 和 SHA-256 校验文件。
 
 ```bash
 pnpm release patch   # 0.1.0 -> 0.1.1

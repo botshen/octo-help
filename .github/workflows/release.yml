@@ -32,6 +32,9 @@ jobs:
           PACKAGE_VERSION="$(node -p "require('./package.json').version")"
           test "v${PACKAGE_VERSION}" = "${GITHUB_REF_NAME}"
 
+      - name: Build release notes
+        run: node scripts/release-notes.mjs "$GITHUB_REF_NAME" > RELEASE_NOTES.md
+
       - name: Type check
         run: pnpm compile
 
@@ -44,4 +47,4 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" .output/*.zip .output/SHA256SUMS.txt --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
+        run: gh release create "$GITHUB_REF_NAME" .output/*.zip .output/SHA256SUMS.txt --verify-tag --notes-file RELEASE_NOTES.md --title "Octo 聊天增强 ${GITHUB_REF_NAME}"
