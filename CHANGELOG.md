@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-07-10
+
 ### 新增
 
 - Bot 资料卡改版为「全息卡牌」：synthwave 落日 banner + 悬浮圆形大头像，备注/简介等信息合并进一个连续大框，创建者移到卡片底部作署名；卡片随鼠标 3D 倾斜并有跟手的全息高光。亮色 / 暗色 / 世界杯三套主题各自配色，结构共享。纯 CSS 覆盖 + 只读 DOM，不改动 Octo 源码；`prefers-reduced-motion` 下自动关闭 3D 倾斜与全息高光。
@@ -64,7 +66,8 @@
 
 - 还原撤回消息时正确显示原发送者姓名和头像。
 
-[Unreleased]: https://github.com/botshen/octo-help/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/botshen/octo-help/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/botshen/octo-help/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/botshen/octo-help/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/botshen/octo-help/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/botshen/octo-help/compare/v0.1.1...v0.2.0
