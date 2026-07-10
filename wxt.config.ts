@@ -13,8 +13,8 @@ export default defineConfig({
     host_permissions: OCTO_MATCHES,
     web_accessible_resources: [
       {
-        // MAIN-world script injected by octo.content.ts via injectScript().
-        resources: ['octo-main-world.js'],
+        // MAIN-world script plus assets referenced from the page context.
+        resources: ['octo-main-world.js', 'messi-watermark.png'],
         matches: OCTO_MATCHES,
       },
     ],

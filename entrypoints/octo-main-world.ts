@@ -3,7 +3,14 @@ import {
   MESSAGE_TYPE,
   type OctoMessage,
 } from '@/utils/octoRecall';
-import { DEFAULT_THEME, initBeautify, setKickStyle, setTheme } from '@/utils/octoBeautify';
+import {
+  DEFAULT_THEME,
+  initBeautify,
+  setGlobalTheme,
+  setKickStyle,
+  setMessiWatermark,
+  setTheme,
+} from '@/utils/octoBeautify';
 
 /**
  * MAIN-world script.
@@ -378,8 +385,12 @@ export default defineUnlistedScript(() => {
       applyToggle(!!data.enabled);
     } else if (data.type === MESSAGE_TYPE.theme) {
       setTheme(data.themeId);
+    } else if (data.type === MESSAGE_TYPE.globalTheme) {
+      setGlobalTheme(data.themeId);
     } else if (data.type === MESSAGE_TYPE.kickStyle) {
       setKickStyle(data.styleId);
+    } else if (data.type === MESSAGE_TYPE.messiWatermark) {
+      setMessiWatermark(data.enabled, data.imageUrl);
     }
   });
 });

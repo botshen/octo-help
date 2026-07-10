@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Octo 全站配色主题预览</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f4f5f8;
+      --ink: #1f2329;
+      --muted: #687182;
+      --soft: #8a93a6;
+      --line: #dfe3ea;
+      --rail: #eef0f5;
+      --side: #fbfcff;
+      --side-2: #f4f6fb;
+      --main: #f7f8fc;
+      --panel: #ffffff;
+      --panel-2: #f8f9fe;
+      --header: #ffffff;
+      --input: #ffffff;
+      --ai-bg: #ffffff;
+      --ai-line: #e4e7f2;
+      --ai-accent: #6d63e8;
+      --ai-accent-2: #12b8d8;
+      --send-bg: #f8fcfa;
+      --send-line: #dfece6;
+      --send-accent: #3f9f70;
+      --recv-bg: #ffffff;
+      --recv-line: #e4e7f0;
+      --recv-accent: #9aa3b8;
+      --selected: rgba(109, 99, 232, 0.12);
+      --selected-strong: rgba(109, 99, 232, 0.20);
+      --hover: rgba(31, 35, 41, 0.05);
+      --danger-bg: rgba(232, 78, 74, 0.12);
+      --danger: #d94743;
+      --success: #2d9362;
+      --shadow: 0 10px 30px rgba(27, 35, 58, 0.10);
+      --shadow-soft: 0 2px 10px rgba(27, 35, 58, 0.08);
+      --radius: 8px;
+      --radius-lg: 12px;
+    }
+
+    body.theme-night {
+      color-scheme: dark;
+      --page: #0d0c13;
+      --ink: #eef0f7;
+      --muted: #a8adbc;
+      --soft: #7f8494;
+      --line: rgba(255, 255, 255, 0.10);
+      --rail: #111019;
+      --side: #15131d;
+      --side-2: #1a1724;
+      --main: #131119;
+      --panel: #1c1926;
+      --panel-2: #201d2c;
+      --header: #1a1724;
+      --input: #211e2d;
+      --ai-bg: #1e1b2a;
+      --ai-line: rgba(255, 255, 255, 0.12);
+      --ai-accent: #8b7cf0;
+      --ai-accent-2: #2fd2ea;
+      --send-bg: #17231d;
+      --send-line: rgba(84, 207, 144, 0.22);
+      --send-accent: #54cf90;
+      --recv-bg: #1c1a24;
+      --recv-line: rgba(255, 255, 255, 0.10);
+      --recv-accent: #939bb0;
+      --selected: rgba(139, 124, 240, 0.18);
+      --selected-strong: rgba(139, 124, 240, 0.28);
+      --hover: rgba(255, 255, 255, 0.06);
+      --danger-bg: rgba(245, 74, 69, 0.16);
+      --danger: #ff7a76;
+      --success: #65d89b;
+      --shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
+      --shadow-soft: 0 3px 14px rgba(0, 0, 0, 0.24);
+    }
+
+    body.theme-mist {
+      --page: #f3f6f7;
+      --ink: #1f2a2d;
+      --muted: #627077;
+      --soft: #87939a;
+      --line: #dce5e6;
+      --rail: #eaf0f1;
+      --side: #fbfdfd;
+      --side-2: #f1f6f6;
+      --main: #f6faf9;
+      --panel: #ffffff;
+      --panel-2: #f5f9f8;
+      --header: #ffffff;
+      --input: #ffffff;
+      --ai-bg: #ffffff;
+      --ai-line: #dde8e8;
+      --ai-accent: #417d88;
+      --ai-accent-2: #8d75de;
+      --send-bg: #f4fbf7;
+      --send-line: #dbece3;
+      --send-accent: #3c9b6b;
+      --recv-bg: #ffffff;
+      --recv-line: #dde5e8;
+      --recv-accent: #7b8790;
+      --selected: rgba(65, 125, 136, 0.13);
+      --selected-strong: rgba(65, 125, 136, 0.22);
+      --hover: rgba(31, 42, 45, 0.05);
+      --danger-bg: rgba(218, 85, 72, 0.12);
+      --danger: #c94f45;
+      --success: #2f9163;
+      --shadow: 0 10px 30px rgba(33, 62, 66, 0.10);
+      --shadow-soft: 0 2px 10px rgba(33, 62, 66, 0.08);
+    }
+
+    body.theme-worldcup {
+      --page: #efe5d4;
+      --ink: #1c1b19;
+      --muted: #6e675a;
+      --soft: #9a8f7d;
+      --line: #e1d5c2;
+      --rail: #e9decf;
+      --side: #fbf7ef;
+      --side-2: #f5ecdd;
+      --main: #f7f3ea;
+      --panel: #fffdf8;
+      --panel-2: #f8efe2;
+      --header: #fffdf8;
+      --input: #fffdf8;
+      --ai-bg: #fffdf8;
+      --ai-line: #eae3d6;
+      --ai-accent: #13294b;
+      --ai-accent-2: #c6a04a;
+      --send-bg: #fffdf8;
+      --send-line: #efddd9;
+      --send-accent: #c8102e;
+      --recv-bg: #fffdf8;
+      --recv-line: #dce8e1;
+      --recv-accent: #0b6e4f;
+      --selected: rgba(19, 41, 75, 0.10);
+      --selected-strong: rgba(19, 41, 75, 0.16);
+      --hover: rgba(28, 27, 25, 0.055);
+      --danger-bg: rgba(200, 16, 46, 0.12);
+      --danger: #c8102e;
+      --success: #0b6e4f;
+      --shadow: 0 14px 34px rgba(70, 48, 20, 0.13);
+      --shadow-soft: 0 3px 12px rgba(70, 48, 20, 0.09);
+      --ball: url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cg%20fill='%2313294b'%20stroke='%2313294b'%20stroke-width='2'%20stroke-linejoin='round'%3E%3Ccircle%20cx='32'%20cy='32'%20r='29'%20fill='none'/%3E%3Cpolygon%20points='32,21%2040.6,27.2%2037.3,37.4%2026.7,37.4%2023.4,27.2'/%3E%3Cg%20fill='none'%3E%3Cpath%20d='M32%2021V7'/%3E%3Cpath%20d='M40.6%2027.2L53.4%2022.8'/%3E%3Cpath%20d='M37.3%2037.4L45.5%2050.6'/%3E%3Cpath%20d='M26.7%2037.4L18.5%2050.6'/%3E%3Cpath%20d='M23.4%2027.2L10.6%2022.8'/%3E%3C/g%3E%3Cpolygon%20points='32,4%2042,8%2040.6,18.5%2023.4,18.5%2022,8'/%3E%3Cpolygon%20points='55,20%2059,31%2050,38%2042.5,28.5%2049,21'/%3E%3Cpolygon%20points='47,52%2036,57%2031,47%2040,40%2049,45'/%3E%3Cpolygon%20points='17,52%205,45%2014,40%2023,47%2018,57'/%3E%3Cpolygon%20points='9,20%2015,21%2021.5,28.5%2014,38%205,31'/%3E%3C/g%3E%3C/svg%3E");
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--page);
+      color: var(--ink);
+      font-family: "PingFang SC", "Inter", -apple-system, BlinkMacSystemFont, "Noto Sans SC", sans-serif;
+      letter-spacing: 0;
+    }
+
+    body {
+      padding: 18px;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 296px minmax(0, 1fr);
+      gap: 14px;
+    }
+
+    .brief,
+    .preview {
+      min-width: 0;
+    }
+
+    .brief {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    .section-head {
+      padding: 14px 14px 10px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 18px;
+      line-height: 1.35;
+    }
+
+    h2 {
+      font-size: 13px;
+      line-height: 1.3;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    h3 {
+      font-size: 13px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .caption {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .theme-buttons {
+      padding: 10px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .theme-btn {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--ink);
+      border-radius: var(--radius);
+      padding: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+    }
+
+    .theme-btn:hover {
+      background: var(--hover);
+    }
+
+    .theme-btn.is-active {
+      border-color: color-mix(in oklab, var(--ai-accent) 54%, var(--line));
+      background: var(--selected);
+    }
+
+    .theme-name {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.3;
+    }
+
+    .theme-desc {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .theme-token {
+      width: 42px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background:
+        linear-gradient(90deg, var(--ai-accent), var(--ai-accent-2) 52%, var(--send-accent));
+    }
+
+    .palette {
+      padding: 12px;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .swatch {
+      min-height: 60px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--panel-2);
+    }
+
+    .swatch-fill {
+      height: 28px;
+      background: var(--swatch);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .swatch-text {
+      padding: 7px 8px 8px;
+      font-size: 11px;
+      line-height: 1.35;
+      color: var(--muted);
+    }
+
+    .swatch-text strong {
+      display: block;
+      color: var(--ink);
+      font-size: 11px;
+    }
+
+    .dom-list {
+      padding: 10px 12px 12px;
+      display: grid;
+      gap: 7px;
+    }
+
+    .dom-row {
+      display: grid;
+      grid-template-columns: 82px 1fr;
+      gap: 8px;
+      align-items: start;
+      font-size: 11px;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+
+    .dom-row code {
+      color: var(--ai-accent);
+      font-family: "SF Mono", "Menlo", monospace;
+      font-size: 10px;
+      word-break: break-word;
+    }
+
+    .preview {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      background: var(--panel);
+      min-height: calc(100vh - 36px);
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .preview-top {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--header);
+    }
+
+    .preview-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--ai-accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 13px;
+      box-shadow: 0 4px 12px color-mix(in oklab, var(--ai-accent) 26%, transparent);
+    }
+
+    .preview-title strong {
+      display: block;
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .preview-title span {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.25;
+      margin-top: 2px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-pill {
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 999px;
+      padding: 0 10px;
+      white-space: nowrap;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .octo-app {
+      min-height: 720px;
+      display: grid;
+      grid-template-columns: 56px 360px minmax(0, 1fr);
+      background: var(--main);
+    }
+
+    .navrail {
+      background: var(--rail);
+      border-right: 1px solid var(--line);
+      padding: 14px 8px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(145deg, var(--ai-accent), var(--ai-accent-2));
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      border: 2px solid var(--panel);
+    }
+
+    .nav-sep {
+      width: 22px;
+      height: 1px;
+      background: var(--line);
+      margin: 6px 0;
+    }
+
+    .nav-item {
+      width: 40px;
+      height: 40px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--soft);
+      display: grid;
+      place-items: center;
+      cursor: default;
+    }
+
+    .nav-item.is-active {
+      background: var(--selected-strong);
+      color: var(--ai-accent);
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      border: 2px solid currentColor;
+      border-radius: 5px;
+      position: relative;
+    }
+
+    .nav-icon::after {
+      content: "";
+      position: absolute;
+      left: 3px;
+      right: 3px;
+      top: 7px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 2px;
+    }
+
+    .navrail-spacer {
+      flex: 1;
+    }
+
+    .chat-list {
+      background: var(--side);
+      border-right: 1px solid var(--line);
+      display: grid;
+      grid-template-rows: 48px 42px 1fr;
+      min-width: 0;
+    }
+
+    .workspace {
+      height: 48px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .workspace strong {
+      font-size: 14px;
+    }
+
+    .latency {
+      font-size: 11px;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .tabs {
+      padding: 4px 12px 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      height: 30px;
+      border: 0;
+      border-radius: 8px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .tab.is-active {
+      color: var(--ink);
+      background: var(--selected);
+    }
+
+    .conversations {
+      overflow: hidden;
+      padding: 8px;
+      display: grid;
+      align-content: start;
+      gap: 2px;
+    }
+
+    .conversation {
+      min-height: 68px;
+      border-radius: 8px;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+    }
+
+    .conversation:hover {
+      background: var(--hover);
+    }
+
+    .conversation.is-active {
+      background: var(--selected);
+    }
+
+    .conversation.is-unread .conv-name {
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .conv-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: var(--ai-accent);
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .conv-main {
+      min-width: 0;
+    }
+
+    .conv-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      min-width: 0;
+    }
+
+    .conv-name {
+      color: var(--ink);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .conv-time,
+    .conv-last,
+    .conv-path {
+      font-size: 11px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .conv-path {
+      margin-bottom: 3px;
+      color: var(--soft);
+    }
+
+    .badge {
+      min-width: 22px;
+      height: 16px;
+      padding: 0 6px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--danger-bg);
+      color: var(--danger);
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .main-chat {
+      min-width: 0;
+      display: grid;
+      grid-template-rows: 48px minmax(0, 1fr) 64px;
+      background: var(--main);
+    }
+
+    .chat-header {
+      height: 48px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: var(--header);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .breadcrumb span {
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .header-tools {
+      display: flex;
+      gap: 8px;
+    }
+
+    .tool-btn {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--muted);
+      display: grid;
+      place-items: center;
+    }
+
+    .tool-line {
+      width: 14px;
+      height: 2px;
+      background: currentColor;
+      border-radius: 2px;
+      box-shadow: 0 5px 0 currentColor, 0 -5px 0 currentColor;
+    }
+
+    .messages {
+      overflow: hidden;
+      padding: 16px 16px 20px;
+      display: grid;
+      align-content: end;
+      gap: 12px;
+      background:
+        linear-gradient(0deg, color-mix(in oklab, var(--main) 96%, var(--ai-accent) 4%), var(--main));
+    }
+
+    .date-line {
+      justify-self: center;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: color-mix(in oklab, var(--panel) 78%, transparent);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .message {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 820px);
+      gap: 10px;
+      align-items: start;
+    }
+
+    .message.send {
+      grid-template-columns: minmax(0, 720px) 36px;
+      justify-content: end;
+    }
+
+    .message.send .msg-avatar {
+      order: 2;
+    }
+
+    .msg-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--ai-accent);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .msg-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 5px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .msg-name {
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .ai-tag {
+      height: 16px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 0 7px;
+      background: var(--ai-accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .bubble {
+      position: relative;
+      width: fit-content;
+      max-width: 100%;
+      border-radius: 9px;
+      border: 1px solid var(--recv-line);
+      border-left: 3px solid var(--recv-accent);
+      background: var(--recv-bg);
+      color: var(--ink);
+      padding: 11px 14px;
+      font-size: 13px;
+      line-height: 1.62;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .message.ai .bubble {
+      background: var(--ai-bg);
+      border-color: var(--ai-line);
+      border-left-color: var(--ai-accent);
+    }
+
+    .message.send .bubble {
+      background: var(--send-bg);
+      border-color: var(--send-line);
+      border-left-color: var(--send-accent);
+      justify-self: end;
+    }
+
+    .bubble::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-repeat: no-repeat;
+      background-image:
+        linear-gradient(var(--ai-accent-2), var(--ai-accent-2)),
+        linear-gradient(var(--ai-accent-2), var(--ai-accent-2)),
+        linear-gradient(var(--ai-accent), var(--ai-accent)),
+        linear-gradient(var(--ai-accent), var(--ai-accent));
+      background-size: 9px 2px, 2px 9px, 9px 2px, 2px 9px;
+      background-position: left top, left top, right top, right top;
+      opacity: 0;
+    }
+
+    .message.ai .bubble::before,
+    .message.send .bubble::before {
+      opacity: 0.85;
+    }
+
+    .message.send .bubble::before {
+      background-image:
+        linear-gradient(var(--send-accent), var(--send-accent)),
+        linear-gradient(var(--send-accent), var(--send-accent)),
+        linear-gradient(var(--ai-accent-2), var(--ai-accent-2)),
+        linear-gradient(var(--ai-accent-2), var(--ai-accent-2));
+    }
+
+    .theme-worldcup .messages {
+      background:
+        radial-gradient(74% 58% at 8% -12%, rgba(198, 160, 74, 0.16), transparent 70%),
+        radial-gradient(62% 50% at 100% 105%, rgba(11, 110, 79, 0.11), transparent 72%),
+        linear-gradient(rgba(19, 41, 75, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(19, 41, 75, 0.03) 1px, transparent 1px),
+        var(--main);
+      background-size: auto, auto, 36px 36px, 36px 36px, auto;
+    }
+
+    .theme-worldcup .brand-mark,
+    .theme-worldcup .send-btn {
+      background: var(--ai-accent);
+    }
+
+    .theme-worldcup .ai-tag,
+    .theme-worldcup .selector-chip {
+      background: linear-gradient(160deg, #e8c56b 0%, #b68a2e 58%, #9a6e2e 100%);
+      color: #2a2206;
+      box-shadow: inset 0 1px 0 rgba(255, 244, 214, 0.68);
+    }
+
+    .theme-worldcup .msg-name {
+      letter-spacing: 0.02em;
+    }
+
+    .theme-worldcup .message.ai .msg-name {
+      color: #9a6e2e;
+    }
+
+    .theme-worldcup .message.send .msg-name {
+      color: var(--send-accent);
+    }
+
+    .theme-worldcup .message:not(.ai):not(.send) .msg-name {
+      color: var(--recv-accent);
+    }
+
+    .theme-worldcup .bubble {
+      border-radius: 12px;
+      padding: 12px 16px 38px;
+      color: #1c1b19;
+      box-shadow: 0 1px 2px rgba(30, 30, 50, 0.07), 0 8px 20px rgba(30, 30, 50, 0.06);
+    }
+
+    .theme-worldcup .message.ai .bubble {
+      background:
+        linear-gradient(rgba(198, 160, 74, 0.62), rgba(198, 160, 74, 0.62)) no-repeat left bottom / 100% 1px,
+        radial-gradient(70% 70% at 100% 100%, rgba(19, 41, 75, 0.13) 0%, transparent 62%),
+        linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+      border: 1px solid #eae3d6;
+      border-left: 4px solid var(--ai-accent);
+      box-shadow: inset 5px 0 0 -3px rgba(198, 160, 74, 0.75), 0 1px 2px rgba(30, 30, 50, 0.07), 0 8px 20px rgba(30, 30, 50, 0.06);
+    }
+
+    .theme-worldcup .message.send .bubble {
+      background:
+        linear-gradient(rgba(198, 160, 74, 0.62), rgba(198, 160, 74, 0.62)) no-repeat left bottom / 100% 1px,
+        radial-gradient(70% 70% at 100% 100%, rgba(200, 16, 46, 0.12) 0%, transparent 62%),
+        linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+      border: 1px solid #efddd9;
+      border-left: 4px solid var(--send-accent);
+    }
+
+    .theme-worldcup .message:not(.ai):not(.send) .bubble {
+      background:
+        linear-gradient(rgba(198, 160, 74, 0.62), rgba(198, 160, 74, 0.62)) no-repeat left bottom / 100% 1px,
+        radial-gradient(70% 70% at 100% 100%, rgba(11, 110, 79, 0.12) 0%, transparent 62%),
+        linear-gradient(180deg, #ffffff 0%, #fdfbf7 100%);
+      border: 1px solid #dce8e1;
+      border-left: 4px solid var(--recv-accent);
+    }
+
+    .theme-worldcup .bubble::before {
+      display: none;
+    }
+
+    .theme-worldcup .bubble::after {
+      content: "";
+      position: absolute;
+      left: 13px;
+      bottom: 8px;
+      width: 22px;
+      height: 22px;
+      background: var(--ball) center / contain no-repeat;
+      opacity: 0.16;
+      pointer-events: none;
+    }
+
+    .theme-worldcup .reply {
+      border-top: 3px solid currentColor;
+      border-right: 2px solid currentColor;
+      border-left: 2px solid currentColor;
+      border-radius: 4px 4px 0 0;
+      padding: 7px 12px 6px;
+      color: var(--ai-accent);
+      background:
+        repeating-linear-gradient(45deg, transparent 0 6px, rgba(20, 25, 40, 0.05) 6px 6.8px),
+        repeating-linear-gradient(-45deg, transparent 0 6px, rgba(20, 25, 40, 0.05) 6px 6.8px);
+    }
+
+    .reply {
+      margin-bottom: 7px;
+      padding-left: 10px;
+      border-left: 3px solid var(--ai-accent);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .code-chip {
+      display: inline-block;
+      padding: 1px 5px;
+      border-radius: 4px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--ai-accent);
+      font-family: "SF Mono", "Menlo", monospace;
+      font-size: 12px;
+    }
+
+    .chat-footer {
+      background: color-mix(in oklab, var(--main) 94%, var(--panel) 6%);
+      border-top: 1px solid var(--line);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+    }
+
+    .composer {
+      width: 100%;
+      min-height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--input);
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 0 8px 0 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .send-btn {
+      width: 32px;
+      height: 28px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--ai-accent);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .floating-menu {
+      position: absolute;
+      right: 34px;
+      top: 74px;
+      width: 210px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 8px;
+    }
+
+    .menu-row {
+      min-height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .menu-row.is-active {
+      color: var(--ink);
+      background: var(--selected);
+    }
+
+    .selector-chip {
+      height: 18px;
+      min-width: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: var(--ai-accent);
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    @media (max-width: 1120px) {
+      body {
+        padding: 12px;
+      }
+
+      .shell {
+        grid-template-columns: 1fr;
+      }
+
+      .brief {
+        order: 2;
+      }
+
+      .octo-app {
+        grid-template-columns: 56px 320px minmax(520px, 1fr);
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body class="theme-cyber">
+  <main class="shell">
+    <aside class="brief">
+      <section class="section">
+        <div class="section-head">
+          <h1>Octo 全站配色提案</h1>
+          <p class="caption">基于现有消息气泡风格外扩到网站级容器。保持克制，只强化层级、选中态、输入区和弹层。</p>
+        </div>
+        <div class="theme-buttons" role="group" aria-label="主题切换">
+          <button class="theme-btn is-active" data-theme="theme-cyber">
+            <span>
+              <span class="theme-name">Cyber Soft Light</span>
+              <span class="theme-desc">沿用现有紫青气泡，扩大到浅色全站。</span>
+            </span>
+            <span class="theme-token"></span>
+          </button>
+          <button class="theme-btn" data-theme="theme-night">
+            <span>
+              <span class="theme-name">Cyber Soft Dark</span>
+              <span class="theme-desc">微紫暗底，解决暗色原生变量断层。</span>
+            </span>
+            <span class="theme-token"></span>
+          </button>
+          <button class="theme-btn" data-theme="theme-mist">
+            <span>
+              <span class="theme-name">Mist Console</span>
+              <span class="theme-desc">低饱和青灰，适合长时间办公使用。</span>
+            </span>
+            <span class="theme-token"></span>
+          </button>
+          <button class="theme-btn" data-theme="theme-worldcup">
+            <span>
+              <span class="theme-name">World Cup Broadcast</span>
+              <span class="theme-desc">对标世界杯皮肤，暖纸底和主办国三色。</span>
+            </span>
+            <span class="theme-token"></span>
+          </button>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>核心色板</h2>
+          <p class="caption">用同一组语义变量驱动全站，不让皮肤散落成一堆硬编码。</p>
+        </div>
+        <div class="palette">
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--rail)"></div><div class="swatch-text"><strong>Rail</strong>主导航底色</div></div>
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--side)"></div><div class="swatch-text"><strong>Sidebar</strong>会话列表面</div></div>
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--main)"></div><div class="swatch-text"><strong>Canvas</strong>聊天底色</div></div>
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--panel)"></div><div class="swatch-text"><strong>Panel</strong>弹层和卡片</div></div>
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--ai-accent)"></div><div class="swatch-text"><strong>AI</strong>品牌强调色</div></div>
+          <div class="swatch"><div class="swatch-fill" style="--swatch: var(--send-accent)"></div><div class="swatch-text"><strong>Send</strong>自己消息强调</div></div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-head">
+          <h2>DOM 落点</h2>
+          <p class="caption">Ego 实测后的全站选择器范围。</p>
+        </div>
+        <div class="dom-list">
+          <div class="dom-row"><code>.wk-navrail</code><span>主导航底色、图标、激活态。</span></div>
+          <div class="dom-row"><code>.wk-chat</code><span>左侧工作区和会话列表底色。</span></div>
+          <div class="dom-row"><code>.wk-conversationlist-item</code><span>会话 hover、选中、未读、摘要文本。</span></div>
+          <div class="dom-row"><code>.wk-layout-content-right</code><span>右侧主内容底色和空状态。</span></div>
+          <div class="dom-row"><code>.wk-chat-conversation-header</code><span>聊天顶栏、频道名、操作按钮。</span></div>
+          <div class="dom-row"><code>.wk-conversation-content</code><span>消息滚动区和历史分割线。</span></div>
+          <div class="dom-row"><code>.wk-messageinput-card</code><span>输入框底色、边框、聚焦态。</span></div>
+          <div class="dom-row"><code>.semi-popover .semi-modal</code><span>菜单、弹窗、遮罩和选项。</span></div>
+        </div>
+      </section>
+    </aside>
+
+    <section class="preview">
+      <div class="preview-top">
+        <div class="preview-title">
+          <div class="brand-mark">O</div>
+          <div>
+            <strong>全站主题预览</strong>
+            <span>仿真实际 Octo 三栏布局和消息皮肤</span>
+          </div>
+        </div>
+        <div class="top-actions">
+          <span class="status-pill"><span class="status-dot"></span>68ms</span>
+          <span class="status-pill">主题同步</span>
+        </div>
+      </div>
+
+      <div class="octo-app">
+        <nav class="navrail" aria-label="主导航">
+          <div class="avatar">SX</div>
+          <div class="nav-sep"></div>
+          <button class="nav-item is-active" aria-label="会话"><span class="nav-icon"></span></button>
+          <button class="nav-item" aria-label="通讯录"><span class="nav-icon"></span></button>
+          <button class="nav-item" aria-label="事项"><span class="nav-icon"></span></button>
+          <button class="nav-item" aria-label="应用"><span class="nav-icon"></span></button>
+          <div class="navrail-spacer"></div>
+          <div class="nav-sep"></div>
+          <button class="nav-item" aria-label="设置"><span class="nav-icon"></span></button>
+        </nav>
+
+        <aside class="chat-list">
+          <div class="workspace">
+            <strong>明略科技</strong>
+            <span class="latency"><span class="status-dot"></span>68ms</span>
+          </div>
+          <div class="tabs">
+            <button class="tab is-active">关注 99+</button>
+            <button class="tab">最近 99+</button>
+          </div>
+          <div class="conversations">
+            <div class="conversation is-active is-unread">
+              <div class="conv-avatar">AI</div>
+              <div class="conv-main">
+                <div class="conv-meta"><span class="conv-name">蜻蜓队长</span><span class="conv-time">19:46</span></div>
+                <div class="conv-last">收到，「2」。我会继续跟进状态。</div>
+              </div>
+              <span class="badge">8</span>
+            </div>
+            <div class="conversation is-unread">
+              <div class="conv-avatar">FE</div>
+              <div class="conv-main">
+                <div class="conv-meta"><span class="conv-name">奔跑的 OCTO 前端</span><span class="conv-time">18:51</span></div>
+                <div class="conv-last">沈鑫：还原 UI 难度评估已补充。</div>
+              </div>
+              <span class="badge">12</span>
+            </div>
+            <div class="conversation">
+              <div class="conv-avatar">CR</div>
+              <div class="conv-main">
+                <div class="conv-path">Octo Native开发群</div>
+                <div class="conv-meta"><span class="conv-name">CR-OCTO_WEB</span><span class="conv-time">23:50</span></div>
+                <div class="conv-last">Steve：current head review 已确认。</div>
+              </div>
+              <span class="badge">17</span>
+            </div>
+            <div class="conversation">
+              <div class="conv-avatar">CD</div>
+              <div class="conv-main">
+                <div class="conv-path">Octo Native开发群</div>
+                <div class="conv-meta"><span class="conv-name">CI/CD</span><span class="conv-time">23:52</span></div>
+                <div class="conv-last">Octo 发车了，部署成功。</div>
+              </div>
+              <span class="badge">48</span>
+            </div>
+            <div class="conversation">
+              <div class="conv-avatar">FT</div>
+              <div class="conv-main">
+                <div class="conv-meta"><span class="conv-name">市场调研</span><span class="conv-time">18:19</span></div>
+                <div class="conv-last">你撤回了一条消息。</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <section class="main-chat">
+          <header class="chat-header">
+            <div class="breadcrumb">
+              <strong>Octo Native开发群</strong>
+              <span>›</span>
+              <strong>CR-OCTO_WEB</strong>
+            </div>
+            <div class="header-tools" aria-label="操作">
+              <button class="tool-btn"><span class="tool-line"></span></button>
+              <button class="tool-btn"><span class="tool-line"></span></button>
+            </div>
+          </header>
+
+          <div class="messages">
+            <div class="date-line">7月9日</div>
+            <div class="message ai">
+              <div class="msg-avatar">AI</div>
+              <div>
+                <div class="msg-meta"><span class="msg-name">Octo-PR</span><span class="ai-tag">AI</span><span>15:10</span></div>
+                <div class="bubble">
+                  <div class="reply">引用 Steve：reviewDecision 与 merge gate 需要分开判断。</div>
+                  当前 head 已同步，建议在主题 CSS 中统一使用语义变量，避免只覆盖消息气泡导致侧栏、顶栏和输入框仍是原生灰白。
+                </div>
+              </div>
+            </div>
+
+            <div class="message">
+              <div class="msg-avatar">SX</div>
+              <div>
+                <div class="msg-meta"><span class="msg-name">沈鑫</span><span>15:12</span></div>
+                <div class="bubble">
+                  可以，别太浮夸。现在对话框里的风格能接受，但要让整个网站也统一起来。
+                </div>
+              </div>
+            </div>
+
+            <div class="message send">
+              <div class="msg-avatar">ME</div>
+              <div>
+                <div class="msg-meta"><span class="msg-name">我</span><span>15:16</span></div>
+                <div class="bubble">
+                  我会把范围放到 <span class="code-chip">.wk-navrail</span>、<span class="code-chip">.wk-chat</span>、<span class="code-chip">.wk-conversation-content</span> 和输入区，消息气泡只作为视觉锚点。
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <footer class="chat-footer">
+            <div class="composer">
+              <span>输入消息，整体边框和聚焦态跟随主题强调色</span>
+              <button class="send-btn">发</button>
+            </div>
+          </footer>
+        </section>
+
+        <div class="floating-menu" aria-label="主题菜单">
+          <div class="menu-row is-active"><span>赛博紫 · 亮</span><span class="selector-chip">✓</span></div>
+          <div class="menu-row"><span>赛博紫 · 暗</span><span></span></div>
+          <div class="menu-row"><span>雾青工作台</span><span></span></div>
+          <div class="menu-row"><span>美加墨世界杯</span><span></span></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = Array.from(document.querySelectorAll(".theme-btn"));
+    const body = document.body;
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => {
+        buttons.forEach((item) => item.classList.remove("is-active"));
+        button.classList.add("is-active");
+        body.classList.remove("theme-cyber", "theme-night", "theme-mist", "theme-worldcup");
+        body.classList.add(button.dataset.theme);
+      });
+    });
+  </script>
+</body>
+</html>

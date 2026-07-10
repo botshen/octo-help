@@ -20,12 +20,27 @@ export interface ThemeDef {
   skin: string;
 }
 
+export interface GlobalThemeDef {
+  id: string;
+  label: string;
+  icon: string;
+}
+
 export const THEMES: ThemeDef[] = [
   { id: "cyber-light", label: "赛博紫 · 亮", icon: "☀️", base: "light", skin: "" },
   { id: "cyber-dark", label: "赛博紫 · 暗", icon: "\u{1F319}", base: "dark", skin: "" },
   { id: "worldcup", label: "美加墨世界杯", icon: "\u{1F3C6}", base: "light", skin: "worldcup" },
 ];
 export const DEFAULT_THEME = "cyber-light";
+
+export const GLOBAL_THEMES: GlobalThemeDef[] = [
+  { id: "none", label: "跟随原站", icon: "▫️" },
+  { id: "cyber-light", label: "赛博紫 · 亮", icon: "☀️" },
+  { id: "cyber-dark", label: "赛博紫 · 暗", icon: "\u{1F319}" },
+  { id: "mist", label: "雾青工作台", icon: "◈" },
+  { id: "worldcup", label: "美加墨世界杯", icon: "\u{1F3C6}" },
+];
+export const DEFAULT_GLOBAL_THEME = "none";
 
 const CLAMP_HEIGHT = 240;
 const STYLE_ID = "octo-ai-flatten-css";
@@ -2075,6 +2090,264 @@ const BEAUTIFY_CSS = `            :root {
             @media (prefers-reduced-motion: reduce) {
                 body[data-octo-skin="worldcup"] .wk-markdown:hover .wk-reply-block,
                 body[data-octo-skin="worldcup"] .wk-markdown:hover .wk-message-text-reply { animation: none !important; }
+            }
+
+            body[data-octo-messi-watermark="true"] .wk-conversation-content::after {
+                content: "";
+                position: absolute;
+                right: clamp(20px, 2.4vw, 40px);
+                bottom: 22px;
+                width: clamp(96px, 8vw, 140px);
+                aspect-ratio: 374 / 900;
+                background: var(--octo-messi-watermark-image) center bottom / contain no-repeat;
+                filter: drop-shadow(0 8px 12px rgba(19, 41, 75, 0.18));
+                opacity: 1;
+                pointer-events: none;
+                z-index: 3;
+            }
+
+            /* =====================================================================
+             * 全站配色（body[data-octo-global-theme]）—— 独立于消息主题。
+             * 消息主题仍由 body[theme-mode] / body[data-octo-skin] 控制；这里只覆盖
+             * 导航、会话列表、聊天 chrome、输入区、弹层等外层 UI。
+             * =================================================================== */
+            body[data-octo-global-theme="cyber-light"] {
+                --octo-global-page: #f4f5f8;
+                --octo-global-ink: #1f2329;
+                --octo-global-muted: #687182;
+                --octo-global-soft: #8a93a6;
+                --octo-global-line: #dfe3ea;
+                --octo-global-rail: #eef0f5;
+                --octo-global-side: #fbfcff;
+                --octo-global-main: #f7f8fc;
+                --octo-global-panel: #ffffff;
+                --octo-global-panel-2: #f8f9fe;
+                --octo-global-accent: #6d63e8;
+                --octo-global-accent-2: #12b8d8;
+                --octo-global-selected: rgba(109, 99, 232, 0.12);
+                --octo-global-selected-strong: rgba(109, 99, 232, 0.20);
+                --octo-global-hover: rgba(31, 35, 41, 0.05);
+                --octo-global-shadow: 0 2px 10px rgba(27, 35, 58, 0.08);
+            }
+            body[data-octo-global-theme="cyber-dark"] {
+                --octo-global-page: #0d0c13;
+                --octo-global-ink: #eef0f7;
+                --octo-global-muted: #a8adbc;
+                --octo-global-soft: #7f8494;
+                --octo-global-line: rgba(255, 255, 255, 0.10);
+                --octo-global-rail: #111019;
+                --octo-global-side: #15131d;
+                --octo-global-main: #131119;
+                --octo-global-panel: #1c1926;
+                --octo-global-panel-2: #201d2c;
+                --octo-global-accent: #8b7cf0;
+                --octo-global-accent-2: #2fd2ea;
+                --octo-global-selected: rgba(139, 124, 240, 0.18);
+                --octo-global-selected-strong: rgba(139, 124, 240, 0.28);
+                --octo-global-hover: rgba(255, 255, 255, 0.06);
+                --octo-global-shadow: 0 3px 14px rgba(0, 0, 0, 0.24);
+            }
+            body[data-octo-global-theme="mist"] {
+                --octo-global-page: #f3f6f7;
+                --octo-global-ink: #1f2a2d;
+                --octo-global-muted: #627077;
+                --octo-global-soft: #87939a;
+                --octo-global-line: #dce5e6;
+                --octo-global-rail: #eaf0f1;
+                --octo-global-side: #fbfdfd;
+                --octo-global-main: #f6faf9;
+                --octo-global-panel: #ffffff;
+                --octo-global-panel-2: #f5f9f8;
+                --octo-global-accent: #417d88;
+                --octo-global-accent-2: #8d75de;
+                --octo-global-selected: rgba(65, 125, 136, 0.13);
+                --octo-global-selected-strong: rgba(65, 125, 136, 0.22);
+                --octo-global-hover: rgba(31, 42, 45, 0.05);
+                --octo-global-shadow: 0 2px 10px rgba(33, 62, 66, 0.08);
+            }
+            body[data-octo-global-theme="worldcup"] {
+                --octo-global-page: #efe5d4;
+                --octo-global-ink: #1c1b19;
+                --octo-global-muted: #6e675a;
+                --octo-global-soft: #9a8f7d;
+                --octo-global-line: #e1d5c2;
+                --octo-global-rail: #e9decf;
+                --octo-global-side: #fbf7ef;
+                --octo-global-main: #f7f3ea;
+                --octo-global-panel: #fffdf8;
+                --octo-global-panel-2: #f8efe2;
+                --octo-global-accent: #13294B;
+                --octo-global-accent-2: #C6A04A;
+                --octo-global-selected: rgba(19, 41, 75, 0.10);
+                --octo-global-selected-strong: rgba(19, 41, 75, 0.16);
+                --octo-global-hover: rgba(28, 27, 25, 0.055);
+                --octo-global-shadow: 0 3px 12px rgba(70, 48, 20, 0.09);
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) {
+                --wk-text-strong: var(--octo-global-ink) !important;
+                --wk-text-secondary: var(--octo-global-muted) !important;
+                --wk-text-tertiary: var(--octo-global-soft) !important;
+                --wk-icon-default: color-mix(in srgb, var(--octo-global-ink) 62%, transparent) !important;
+                --wk-icon-muted: color-mix(in srgb, var(--octo-global-ink) 40%, transparent) !important;
+                --wk-bg-deep: var(--octo-global-rail) !important;
+                --wk-bg-base: var(--octo-global-main) !important;
+                --wk-bg-surface: var(--octo-global-panel) !important;
+                --wk-bg-elevated: var(--octo-global-panel-2) !important;
+                --wk-bg-primary: var(--octo-global-panel) !important;
+                --wk-bg-secondary: var(--octo-global-main) !important;
+                --wk-bg-tertiary: var(--octo-global-panel-2) !important;
+                --wk-bg-item-hover: var(--octo-global-hover) !important;
+                --wk-bg-tab: var(--octo-global-hover) !important;
+                --wk-brand-primary: var(--octo-global-accent) !important;
+                --wk-brand-tint-06: var(--octo-global-selected) !important;
+                --wk-brand-tint-08: var(--octo-global-selected) !important;
+                --wk-brand-tint-10: var(--octo-global-selected-strong) !important;
+            }
+
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]),
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) #root,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-base,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-layout {
+                background: var(--octo-global-page) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail {
+                background: var(--octo-global-rail) !important;
+                border-right-color: var(--octo-global-line) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__sep {
+                background: var(--octo-global-line) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__item {
+                color: var(--octo-global-soft) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__item:hover,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__item--active {
+                background: var(--octo-global-selected-strong) !important;
+                color: var(--octo-global-accent) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__user-avatar {
+                background: var(--octo-global-panel) !important;
+                box-shadow: var(--octo-global-shadow) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-navrail__user-status {
+                border-color: var(--octo-global-rail) !important;
+            }
+
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat {
+                background: var(--octo-global-side) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-sidebar-tabbar {
+                border-bottom-color: var(--octo-global-line) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-sidebar-tabbar__btn {
+                color: var(--octo-global-muted) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-sidebar-tabbar__btn--active {
+                background: var(--octo-global-selected) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item {
+                color: var(--octo-global-muted) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item:hover,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item--selected,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item-selected,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item-active {
+                background: var(--octo-global-selected) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item-name {
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conv-breadcrumb,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item-time,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversationlist-item-lastmsg {
+                color: var(--octo-global-muted) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conv-unread-num {
+                background: color-mix(in srgb, #C8102E 13%, transparent) !important;
+                color: #C8102E !important;
+            }
+
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-layout-splitter {
+                background: var(--octo-global-page) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-layout-content-right,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-viewqueue,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-viewqueue-route,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-viewqueue-view,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-content-right,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-content-chat,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-conversation,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversation {
+                background: var(--octo-global-main) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-conversation-header {
+                background: var(--octo-global-panel) !important;
+                border-bottom-color: var(--octo-global-line) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-conversation-header-channel-info-name,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-chat-conversation-header-channel {
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversation-content,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversation-messages {
+                background-color: var(--octo-global-main) !important;
+            }
+            body[data-octo-global-theme="worldcup"] .wk-conversation-content {
+                background-image:
+                    radial-gradient(74% 58% at 8% -12%, rgba(198, 160, 74, 0.16), transparent 70%),
+                    radial-gradient(62% 50% at 100% 105%, rgba(11, 110, 79, 0.11), transparent 72%),
+                    linear-gradient(rgba(19, 41, 75, 0.035) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(19, 41, 75, 0.03) 1px, transparent 1px) !important;
+                background-size: auto, auto, 36px 36px, 36px 36px !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-conversation-footer {
+                background: var(--octo-global-main) !important;
+                border-top-color: var(--octo-global-line) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-messageinput-card {
+                background: var(--octo-global-panel) !important;
+                border-color: var(--octo-global-line) !important;
+                box-shadow: var(--octo-global-shadow) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-messageinput-card:focus-within {
+                border-color: color-mix(in srgb, var(--octo-global-accent) 65%, var(--octo-global-line)) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-message-split-content {
+                color: var(--octo-global-muted) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-message-split-line1,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-message-split-line2 {
+                background-image: linear-gradient(90deg, transparent, var(--octo-global-line), transparent) !important;
+            }
+
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .semi-popover,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .semi-popover-content,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .semi-dropdown-menu,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-modal,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-modal .semi-modal-content,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-modal .semi-modal-body,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-modal .wk-modal-shell,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-modal .wk-modal-body {
+                background: var(--octo-global-panel) !important;
+                border-color: var(--octo-global-line) !important;
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .semi-dropdown-item:hover,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .semi-select-option:hover,
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-list-item:not(.wk-list-item-static):hover {
+                background: var(--octo-global-hover) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-list-item-title {
+                color: var(--octo-global-ink) !important;
+            }
+            body[data-octo-global-theme]:not([data-octo-global-theme="none"]) .wk-list-item-subtitle {
+                color: var(--octo-global-muted) !important;
             }`;
 
 // ---- style injection ----------------------------------------------------
@@ -2090,11 +2363,17 @@ function injectStyles(): void {
 // ---- theme model ---------------------------------------------------------
 
 let currentThemeId = DEFAULT_THEME;
+let currentGlobalThemeId = DEFAULT_GLOBAL_THEME;
 let selfWritingTheme = false;
 
 function themeById(id: string): ThemeDef {
   for (const t of THEMES) if (t.id === id) return t;
   return THEMES[0];
+}
+
+function globalThemeById(id: string): GlobalThemeDef {
+  for (const t of GLOBAL_THEMES) if (t.id === id) return t;
+  return GLOBAL_THEMES[0];
 }
 
 /** Reflect a theme id onto <body>: base -> [theme-mode], skin -> [data-octo-skin]. Idempotent. */
@@ -2121,6 +2400,18 @@ function reflectTheme(id: string): void {
   }
 }
 
+/** Reflect a whole-site color theme onto <body>. This is independent of message skin. */
+function reflectGlobalTheme(id: string): void {
+  const body = document.body;
+  if (!body) return;
+  const t = globalThemeById(id);
+  if (t.id === 'none') {
+    body.removeAttribute('data-octo-global-theme');
+  } else if (body.getAttribute('data-octo-global-theme') !== t.id) {
+    body.setAttribute('data-octo-global-theme', t.id);
+  }
+}
+
 /**
  * Set the active theme (called on init and whenever the popup changes it).
  * The app forces light mode on startup (removes body[theme-mode]); a
@@ -2131,6 +2422,37 @@ export function setTheme(id: string): void {
   reflectTheme(currentThemeId);
   // Mount/unmount the worldcup soccer balls right away (don't wait for next sync).
   try { syncBalls(); } catch { /* noop */ }
+}
+
+export function setGlobalTheme(id: string): void {
+  currentGlobalThemeId = globalThemeById(id).id;
+  reflectGlobalTheme(currentGlobalThemeId);
+}
+
+export function setMessiWatermark(enabled: boolean, imageUrl: string): void {
+  const body = document.body;
+  if (!body) return;
+
+  let url: URL;
+  try {
+    url = new URL(imageUrl);
+  } catch {
+    enabled = false;
+    url = new URL('about:blank');
+  }
+
+  const validAsset =
+    (url.protocol === 'chrome-extension:' || url.protocol === 'moz-extension:') &&
+    url.pathname === '/messi-watermark.png';
+
+  if (!enabled || !validAsset) {
+    body.removeAttribute('data-octo-messi-watermark');
+    body.style.removeProperty('--octo-messi-watermark-image');
+    return;
+  }
+
+  body.setAttribute('data-octo-messi-watermark', 'true');
+  body.style.setProperty('--octo-messi-watermark-image', `url(${JSON.stringify(url.href)})`);
 }
 
 let themeObserverBound = false;
@@ -2409,6 +2731,7 @@ function sync(): void {
   if (bodyObserver) bodyObserver.disconnect();
   try {
     try { reflectTheme(currentThemeId); } catch { /* noop */ }
+    try { reflectGlobalTheme(currentGlobalThemeId); } catch { /* noop */ }
     try { watchAllToggles(); } catch { /* noop */ }
     try { expandAllFoldSessions(); } catch { /* noop */ }
     try { markAIContinueMessages(); } catch { /* noop */ }
@@ -2440,6 +2763,7 @@ export function initBeautify(initialThemeId: string): void {
   const boot = () => {
     injectStyles();
     setTheme(currentThemeId);
+    setGlobalTheme(currentGlobalThemeId);
     setKickStyle(currentKickStyle); // reflect default kick style onto <body> for bg CSS
     watchThemeAttr();
     bindClicks();
