@@ -7,8 +7,8 @@ const OCTO_MATCHES = ['https://im.deepminer.com.cn/*'];
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
-    name: 'Octo 撤回消息还原',
-    description: '在 Octo 聊天里显示已撤回消息的原文',
+    name: 'Octo 聊天增强',
+    description: '增强 Octo 网页聊天：还原已撤回消息，提供消息美化、全站主题、世界杯特效和梅西水印。',
     permissions: ['storage'],
     host_permissions: OCTO_MATCHES,
     web_accessible_resources: [

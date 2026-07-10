@@ -79,7 +79,7 @@ function App() {
 
   return (
     <main className="panel">
-      <h1 className="title">Octo 增强</h1>
+      <h1 className="title">Octo 聊天增强</h1>
 
       <section className="group">
         <div className="group-title">消息主题（美化换肤）</div>

@@ -1,11 +1,12 @@
-# Octo 增强插件
+# Octo 聊天增强
 
-一个浏览器扩展（WXT + React），增强 Octo（`im.deepminer.com.cn`）网页版聊天：
+一个增强 Octo（`im.deepminer.com.cn`）网页版聊天体验的浏览器扩展（WXT + React）：
 
 - **显示已撤回消息的原文** —— 把「XX撤回了一条消息」还原成正常消息气泡，标注「已撤回」。
-- **消息美化 + 换肤** —— 三档气泡配色（AI / 自己 / 他人）、折叠会话自动展开、长消息限高「展开全文」、暗色适配，以及可切换的消息主题（赛博紫·亮 / 赛博紫·暗 / 美加墨世界杯）。
+- **消息美化 + 换肤** —— 三档气泡配色（AI / 自己 / 他人）、折叠会话自动展开、长消息限高「展开全文」、暗色适配，以及可切换的消息主题。
+- **全站主题 + 世界杯特效** —— 可切换导航、会话和输入区配色，提供足球射门动画与梅西水印。
 
-两个功能都是纯 CSS/DOM 覆盖，不改动 Octo 源码。
+这些功能都是纯 CSS/DOM 覆盖，不改动 Octo 源码。
 
 ## 原理
 
@@ -32,3 +33,18 @@ pnpm build      # 生产构建
 ```
 
 安装扩展后打开 Octo，点扩展图标：选择消息主题、按需打开「显示已撤回的消息」。仅在 `im.deepminer.com.cn` 生效（改域名见 `wxt.config.ts` 的 `OCTO_MATCHES`）；所有处理在本地完成，插件不向任何服务器发送数据。
+
+## 安装 Release 包
+
+从仓库的 [Releases](https://github.com/botshen/octo-help/releases) 下载 Chrome ZIP，解压后在 `chrome://extensions` 中打开「开发者模式」，选择「加载已解压的扩展程序」。
+
+## 发布
+
+发布命令会检查工作区和分支、运行类型检查、构建 ZIP、更新版本号、创建提交和 tag，并推送到 GitHub。GitHub Actions 随后会自动创建 Release 并上传 Chrome ZIP 和 SHA-256 校验文件。
+
+```bash
+pnpm release patch   # 0.1.0 -> 0.1.1
+pnpm release minor   # 0.1.0 -> 0.2.0
+pnpm release major   # 0.1.0 -> 1.0.0
+pnpm release 1.2.3   # 发布指定版本
+```

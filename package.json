@@ -1,8 +1,9 @@
 {
-  "name": "wxt-react-starter",
-  "description": "manifest.json description",
+  "name": "octo-chat-enhancer",
+  "description": "增强 Octo 网页聊天：还原已撤回消息，提供消息美化、全站主题、世界杯特效和梅西水印。",
   "private": true,
   "version": "0.0.0",
+  "packageManager": "pnpm@10.11.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -12,6 +13,7 @@
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
     "compile": "tsc --noEmit",
+    "release": "node scripts/release.mjs",
     "postinstall": "wxt prepare"
   },
   "dependencies": {
