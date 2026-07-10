@@ -706,14 +706,22 @@ const BEAUTIFY_CSS = `            :root {
                 82% { box-shadow: inset 0 -2px 0 0 rgba(0, 224, 255, 0.92), inset 0 -16px 22px -5px rgba(124, 60, 240, 0.44); }
             }
 
-            /* 外壳：大圆角 + 裁切 + 柔和投影 */
+            /* 外壳：大圆角 + 裁切 + 柔和投影。position:relative 供全息卡框 ::after 定位 */
             .wk-bot-detail-modal .wk-modal-shell {
+                position: relative !important;
                 border-radius: 18px !important;
                 overflow: hidden !important;
                 box-shadow: 0 24px 64px rgba(26, 22, 64, 0.30) !important;
             }
-            /* 内容：清顶 padding 给 banner，底部微暖白渐变，入场动效 */
+            /* 高档稀有度的外发光靠 shell 的 drop-shadow filter 溢出到 shell 外，
+             * Semi 弹窗容器默认会裁掉 → 放开裁切让金/彩虹光晕透出（shell 自身仍裁圆） */
+            .wk-bot-detail-modal .semi-modal-content,
+            .wk-bot-detail-modal .semi-modal-body {
+                overflow: visible !important;
+            }
+            /* 内容：清顶 padding 给 banner，底部微暖白渐变，入场动效。position:relative 供稀有度角标定位 */
             .wk-bot-detail-content {
+                position: relative !important;
                 padding: 0 22px 22px !important;
                 background: radial-gradient(130% 70% at 50% 0%, #fbfbff 0%, #ffffff 58%) !important;
                 animation: octo-bot-in .3s cubic-bezier(.22,.8,.28,1) both !important;
@@ -920,6 +928,254 @@ const BEAUTIFY_CSS = `            :root {
                     animation: none !important;
                 }
                 .wk-bot-detail-content { animation: none !important; }
+            }
+
+            /* ========================================================
+             * Bot 资料卡「抽卡」—— 每次打开随机一个稀有度（宝可梦式档位），
+             * JS 把 data-octo-rarity 写到 shell + content，CSS 据此渲染：
+             *   · 金箔全息卡框（shell::after，各档配色）+ 全息流光横扫（shell::before）
+             *   · 稀有度角标（content::after，content: attr(data-octo-rarity)）
+             *   · SSR/UR 外发光脉动
+             *   · 开卡揭晓全屏特效（JS 注入 .octo-gacha-fx 到 body，播完自移除）
+             * 纯 CSS 覆盖 + 只读随机，不动源码。
+             * ====================================================== */
+            /* 金箔全息卡框：渐变描边 + mask 挖空只留 3px 边；渐变缓慢流动 = 全息感。
+             * --octo-frame 由稀有度覆盖（默认金箔），UR=彩虹。 */
+            .wk-bot-detail-modal .wk-modal-shell::after {
+                content: "" !important;
+                position: absolute !important;
+                inset: 0 !important;
+                border-radius: 18px !important;
+                padding: 3px !important;
+                background: var(--octo-frame, linear-gradient(135deg, #fff6d0 0%, #f2d98a 12%, #ffffff 26%, #c9a24b 42%, #8a6a24 56%, #f2d98a 70%, #ffffff 84%, #c9a24b 100%)) !important;
+                background-size: 300% 300% !important;
+                -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+                -webkit-mask-composite: xor !important;
+                        mask-composite: exclude !important;
+                pointer-events: none !important;
+                z-index: 4 !important;
+                animation: octo-frame-holo 6s linear infinite !important;
+            }
+            @keyframes octo-frame-holo {
+                0%   { background-position: 0% 50%; }
+                100% { background-position: 300% 50%; }
+            }
+            /* 全息流光：斜向高光带横扫（screen 混合只提亮，holo 卡质感） */
+            .wk-bot-detail-modal .wk-modal-shell::before {
+                content: "" !important;
+                position: absolute !important;
+                top: -30% !important;
+                left: -70% !important;
+                width: 65% !important;
+                height: 160% !important;
+                background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 34%, rgba(120, 220, 255, 0.6) 46%, rgba(255, 190, 255, 0.6) 54%, rgba(255, 255, 255, 0.5) 66%, transparent 100%) !important;
+                transform: skewX(-18deg) !important;
+                mix-blend-mode: screen !important;
+                pointer-events: none !important;
+                z-index: 3 !important;
+                animation: octo-card-holo 4.8s cubic-bezier(.5, 0, .5, 1) infinite !important;
+            }
+            @keyframes octo-card-holo {
+                0%   { left: -70%; opacity: 0; }
+                12%  { opacity: 1; }
+                55%  { opacity: 1; }
+                70%  { left: 150%; opacity: 0; }
+                100% { left: 150%; opacity: 0; }
+            }
+            /* 稀有度 → 卡框配色（--octo-frame） */
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]   { --octo-frame: linear-gradient(135deg,#d8dae2,#ffffff 28%,#b9bcc7 52%,#eef0f5 78%,#c7cad3) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="R"]   { --octo-frame: linear-gradient(135deg,#bfe0ff,#ffffff 26%,#3d7bd9 50%,#8fc0ff 74%,#2f6fd0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SR"]  { --octo-frame: linear-gradient(135deg,#f0d9ff,#ffffff 24%,#9b59e6 48%,#e0b3ff 72%,#7a3fd0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { --octo-frame: linear-gradient(135deg,#fff6d0,#f2d98a 18%,#ffffff 32%,#c9a24b 50%,#8a6a24 64%,#f2d98a 80%,#fff6d0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { --octo-frame: linear-gradient(135deg,#ff5ac6,#ffd75e 20%,#5be6ff 40%,#b06bff 60%,#ff8a5a 80%,#ff5ac6) !important; }
+
+            /* 稀有度差异拉大：N 卡框静态（朴素）；SSR/UR 卡框发光脉动 */
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]::after { animation: none !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { animation: octo-glow-ssr 2.2s ease-in-out infinite !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { animation: octo-glow-ur 1.9s ease-in-out infinite !important; }
+            @keyframes octo-glow-ssr {
+                0%, 100% { filter: drop-shadow(0 0 9px rgba(240,200,90,.45)); }
+                50%      { filter: drop-shadow(0 0 20px rgba(255,210,100,.8)); }
+            }
+            @keyframes octo-glow-ur {
+                0%, 100% { filter: drop-shadow(0 0 12px rgba(150,120,255,.5)) drop-shadow(0 0 22px rgba(120,220,255,.35)); }
+                50%      { filter: drop-shadow(0 0 22px rgba(190,120,255,.85)) drop-shadow(0 0 40px rgba(120,220,255,.6)); }
+            }
+
+            /* 稀有度角标：左上角徽章，文字取自 data-octo-rarity（JS 每次开卡随机）。纯 ::after，不注入 DOM。
+             * 右上角是关闭键 → 放左上角；默认 N 银色，各档配色见下；金箔/彩虹流光横扫。 */
+            .wk-bot-detail-content::after {
+                content: attr(data-octo-rarity) !important;
+                position: absolute !important;
+                top: 13px !important;
+                left: 13px !important;
+                z-index: 6 !important;
+                font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif !important;
+                font-style: italic !important;
+                font-weight: 900 !important;
+                font-size: 13px !important;
+                line-height: 1 !important;
+                letter-spacing: 0.5px !important;
+                color: #33363f !important;
+                padding: 5px 10px !important;
+                border-radius: 4px 9px 4px 9px !important;
+                background: linear-gradient(115deg, #b9bcc7 0%, #eef0f5 48%, #b9bcc7 100%) !important;
+                background-size: 220% 100% !important;
+                box-shadow:
+                    0 2px 7px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+                transform: rotate(-7deg) !important;
+                transform-origin: top left !important;
+                pointer-events: none !important;
+                animation: octo-ssr-foil 3.2s linear infinite !important;
+            }
+            /* 无稀有度属性时不显示角标（避免抽卡前空白框） */
+            .wk-bot-detail-content:not([data-octo-rarity])::after { content: none !important; }
+            /* 各档配色 */
+            .wk-bot-detail-content[data-octo-rarity="R"]::after {
+                color: #eaf2ff !important;
+                background: linear-gradient(115deg, #2f6fd0 0%, #9fc8ff 48%, #2f6fd0 100%) !important;
+                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="SR"]::after {
+                color: #f3e9ff !important;
+                background: linear-gradient(115deg, #7a3fd0 0%, #d9b3ff 48%, #7a3fd0 100%) !important;
+                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="SSR"]::after {
+                color: #4a3208 !important;
+                background: linear-gradient(115deg, #b8860b 0%, #f0c24a 30%, #fff6d0 48%, #f0c24a 62%, #b8860b 100%) !important;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="UR"]::after {
+                color: #3a2a00 !important;
+                background: linear-gradient(115deg, #ff5ac6 0%, #ffd75e 25%, #5be6ff 50%, #b06bff 75%, #ff5ac6 100%) !important;
+                background-size: 300% 100% !important;
+                text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+                box-shadow:
+                    0 2px 9px rgba(120, 80, 220, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+            }
+            @keyframes octo-ssr-foil {
+                0%   { background-position: 220% 0; }
+                100% { background-position: -40% 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .wk-bot-detail-content::after,
+                .wk-bot-detail-modal .wk-modal-shell::before,
+                .wk-bot-detail-modal .wk-modal-shell::after,
+                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"],
+                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"] { animation: none !important; }
+            }
+
+            /* ===== 开卡揭晓全屏特效（JS 注入 .octo-gacha-fx 到 body，播完自移除） ===== */
+            .octo-gacha-fx {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 99999 !important;
+                pointer-events: none !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                overflow: hidden !important;
+                --fx: #ffcf5e;                 /* 默认金 */
+            }
+            .octo-gacha-fx[data-octo-rarity="SR"]  { --fx: #b884ff; --dim: .22; }
+            .octo-gacha-fx[data-octo-rarity="SSR"] { --fx: #ffcf5e; --dim: .34; }
+            .octo-gacha-fx[data-octo-rarity="UR"]  { --fx: #6be3ff; --dim: .46; }
+            /* 暗角背景：短暂压暗中心，让闪光/光线在浅色页面也能炸出来（screen 混合需要暗底） */
+            .octo-gacha-fx::before {
+                content: "" !important;
+                position: absolute !important;
+                inset: 0 !important;
+                background: radial-gradient(circle at 50% 45%, rgba(8,6,24,var(--dim, .3)) 0%, rgba(8,6,24,calc(var(--dim, .3) * .7)) 38%, transparent 74%) !important;
+                opacity: 0;
+                animation: octo-fx-dim .85s ease-out forwards !important;
+            }
+            @keyframes octo-fx-dim {
+                0%   { opacity: 0; }
+                18%  { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            /* 中心闪光：径向爆闪 + 扩散淡出 */
+            .octo-gacha-flash {
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 64vmin !important;
+                height: 64vmin !important;
+                border-radius: 50% !important;
+                background: radial-gradient(circle, #ffffff 0%, var(--fx) 32%, transparent 70%) !important;
+                mix-blend-mode: screen !important;
+                opacity: 0;
+                animation: octo-fx-flash .72s ease-out forwards !important;
+            }
+            @keyframes octo-fx-flash {
+                0%   { transform: scale(.2); opacity: 0; }
+                16%  { opacity: 1; }
+                100% { transform: scale(1.9); opacity: 0; }
+            }
+            /* 放射光线（sunburst）：仅 SSR/UR；conic 光芒 + 环形挖空 + 旋转放大淡出 */
+            .octo-gacha-rays {
+                display: none;
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 150vmin !important;
+                height: 150vmin !important;
+                background: conic-gradient(from 0deg,
+                    transparent 0 7deg, rgba(255,255,255,.55) 7deg 8.5deg,
+                    transparent 8.5deg 22deg, var(--fx) 22deg 23.5deg,
+                    transparent 23.5deg 37deg, rgba(255,255,255,.4) 37deg 38.5deg,
+                    transparent 38.5deg 52deg, var(--fx) 52deg 53.5deg, transparent 53.5deg 67deg) !important;
+                -webkit-mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
+                        mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
+                mix-blend-mode: screen !important;
+                opacity: 0;
+            }
+            .octo-gacha-fx[data-octo-rarity="SSR"] .octo-gacha-rays,
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-rays {
+                display: block !important;
+                animation: octo-fx-rays 1.05s ease-out forwards !important;
+            }
+            @keyframes octo-fx-rays {
+                0%   { transform: rotate(-28deg) scale(.35); opacity: 0; }
+                22%  { opacity: .95; }
+                100% { transform: rotate(24deg) scale(1.35); opacity: 0; }
+            }
+            /* UR 彩虹光爆：整屏彩虹薄雾一闪 */
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-flash {
+                width: 90vmin !important; height: 90vmin !important;
+                background: radial-gradient(circle, #ffffff 0%, #ffd75e 22%, #5be6ff 44%, #b06bff 64%, transparent 78%) !important;
+            }
+            /* 亮片 sparkle：仅 UR，一簇白点 twinkle */
+            .octo-gacha-spark {
+                display: none;
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 6px !important; height: 6px !important; border-radius: 50% !important;
+                background: #fff !important;
+                box-shadow:
+                    -30vmin -18vmin 0 0 #fff, 28vmin -22vmin 0 -1px #ffe9a8, -38vmin 14vmin 0 -1px #bfe6ff,
+                    34vmin 16vmin 0 0 #fff, 8vmin -30vmin 0 -1px #fff, -14vmin 26vmin 0 0 #ffd7f2,
+                    44vmin -6vmin 0 -1px #fff, -46vmin -4vmin 0 0 #d9c6ff !important;
+                opacity: 0;
+            }
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-spark {
+                display: block !important;
+                animation: octo-fx-spark 1.15s ease-out forwards !important;
+            }
+            @keyframes octo-fx-spark {
+                0%   { transform: scale(.4); opacity: 0; }
+                30%  { opacity: 1; }
+                100% { transform: scale(1.5); opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .octo-gacha-fx { display: none !important; }
             }
 
             /* ========================================================
@@ -2612,6 +2868,93 @@ function bindClicks(): void {
   );
 }
 
+// ---- bot profile card gacha: roll a rarity per open + reveal FX ------------
+
+/**
+ * Opening a bot's profile card is a Pokémon-style "draw": each time a card
+ * mounts we roll a weighted-random rarity and stamp it on the shell + content
+ * as `data-octo-rarity`. CSS then paints the foil frame, corner badge, and (for
+ * SSR/UR) the glow pulse; a body-level overlay plays the reveal ceremony.
+ *
+ * The roll is per shell INSTANCE: a shell that already carries a rarity keeps
+ * it (re-renders don't reroll), but closing and reopening the card mounts a
+ * fresh shell, so it draws again. This is purely a read (Math.random) + our own
+ * attribute writes — no source patching, no React state mutation.
+ */
+type Rarity = 'N' | 'R' | 'SR' | 'SSR' | 'UR';
+
+// Weighted tiers — rarer draws are scarcer (sum = 100).
+const RARITY_TIERS: ReadonlyArray<{ key: Rarity; weight: number }> = [
+  { key: 'N', weight: 40 }, // 普通 银
+  { key: 'R', weight: 30 }, // 稀有 蓝
+  { key: 'SR', weight: 18 }, // 超稀有 紫
+  { key: 'SSR', weight: 9 }, // 特级 金
+  { key: 'UR', weight: 3 }, // 极稀 彩虹
+];
+
+function pickRarity(): Rarity {
+  const total = RARITY_TIERS.reduce((sum, t) => sum + t.weight, 0);
+  let r = Math.random() * total;
+  for (const tier of RARITY_TIERS) {
+    r -= tier.weight;
+    if (r < 0) return tier.key;
+  }
+  return 'N';
+}
+
+/**
+ * Reveal ceremony for a fresh draw. Injected into <body> (outside the modal's
+ * React tree so reconciliation can't wipe it) and self-removed after it plays.
+ * Only SR+ get a ceremony — keeping N/R silent makes the high tiers land. The
+ * screen-blend flash/rays need the CSS dim backdrop to show on a light page.
+ */
+function playGachaReveal(rarity: Rarity): void {
+  if (rarity !== 'SR' && rarity !== 'SSR' && rarity !== 'UR') return;
+  if (prefersReducedMotion()) return;
+  const fx = document.createElement('div');
+  fx.className = 'octo-gacha-fx';
+  fx.setAttribute('data-octo-rarity', rarity);
+  fx.innerHTML =
+    '<div class="octo-gacha-flash"></div><div class="octo-gacha-rays"></div><div class="octo-gacha-spark"></div>';
+  (document.body || document.documentElement).appendChild(fx);
+  window.setTimeout(() => fx.remove(), 1300);
+}
+
+function isRarity(value: string | null): value is Rarity {
+  return (
+    value === 'N' ||
+    value === 'R' ||
+    value === 'SR' ||
+    value === 'SSR' ||
+    value === 'UR'
+  );
+}
+
+function rollBotCardRarity(): void {
+  document
+    .querySelectorAll<HTMLElement>('.wk-bot-detail-modal .wk-modal-shell')
+    .forEach((shell) => {
+      const existing = shell.getAttribute('data-octo-rarity');
+      let rarity: Rarity;
+      if (isRarity(existing)) {
+        rarity = existing;
+      } else {
+        rarity = pickRarity();
+        shell.setAttribute('data-octo-rarity', rarity);
+        try {
+          playGachaReveal(rarity); // fresh draw → play the reveal
+        } catch {
+          /* noop */
+        }
+      }
+      // Mirror onto the content node — the corner badge ::after reads it via attr().
+      const content = shell.querySelector('.wk-bot-detail-content');
+      if (content && content.getAttribute('data-octo-rarity') !== rarity) {
+        content.setAttribute('data-octo-rarity', rarity);
+      }
+    });
+}
+
 // ---- worldcup soccer ball: real DOM node + 5 selectable kick styles -------
 
 // Bubbles that carry a corner ball under the worldcup skin.
@@ -2798,6 +3141,7 @@ function sync(): void {
     try { expandAllFoldSessions(); } catch { /* noop */ }
     try { markAIContinueMessages(); } catch { /* noop */ }
     try { applyClamp(); } catch { /* noop */ }
+    try { rollBotCardRarity(); } catch { /* noop */ }
     try { syncBalls(); } catch { /* noop */ }
   } finally {
     if (bodyObserver && document.body) {
