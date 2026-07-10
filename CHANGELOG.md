@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-07-10
+
 ### 新增
 
 - Bot 资料卡「开卡抽卡」：每次打开 Bot 资料卡随机抽取一个稀有度（宝可梦式档位 N / R / SR / SSR / UR，越稀越少），并据此渲染金箔全息卡框、左上角稀有度角标与高档档位的外发光脉动；抽到 SR 及以上会播放一段全屏揭晓特效（SSR/UR 追加放射光线，UR 追加彩虹光爆与亮片）。纯前端随机 + CSS 覆盖，不改动 Octo 源码；`prefers-reduced-motion` 下自动关闭动效。
@@ -58,7 +60,8 @@
 
 - 还原撤回消息时正确显示原发送者姓名和头像。
 
-[Unreleased]: https://github.com/botshen/octo-help/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/botshen/octo-help/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/botshen/octo-help/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/botshen/octo-help/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/botshen/octo-help/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/botshen/octo-help/compare/v0.1.0...v0.1.1
