@@ -666,7 +666,7 @@ const BEAUTIFY_CSS = `            :root {
             .wk-fold-msg-text.octo-clamp.octo-expanded { cursor: zoom-out !important; }
 
             /* ========================================================
-             * Bot 详情弹窗 —— cyber-glass profile 卡片（frontend-design 精修）
+             * Bot 详情弹窗 —— 全息卡牌（holographic trading card）
              * DOM: .wk-bot-detail-content
              *        > .wk-bot-detail-header (头像 / 名字+AiBadge / @id / [chip])
              *        > .wk-bot-detail-desc ×N (.wk-bot-detail-label + 值)
@@ -706,87 +706,360 @@ const BEAUTIFY_CSS = `            :root {
                 82% { box-shadow: inset 0 -2px 0 0 rgba(0, 224, 255, 0.92), inset 0 -16px 22px -5px rgba(124, 60, 240, 0.44); }
             }
 
-            /* 外壳：大圆角 + 裁切 + 柔和投影。position:relative 供全息卡框 ::after 定位 */
+            /* 外壳 → 卡牌本体：金箔全息卡框 + 斜向流光 + 浮起；随鼠标 3D 倾斜(见 JS bindBotCardTilt) */
             .wk-bot-detail-modal .wk-modal-shell {
                 position: relative !important;
-                border-radius: 18px !important;
+                border-radius: 16px !important;
                 overflow: hidden !important;
-                box-shadow: 0 24px 64px rgba(26, 22, 64, 0.30) !important;
+                box-shadow: 0 30px 70px rgba(26, 22, 64, 0.38), 0 2px 8px rgba(26, 22, 64, 0.20) !important;
+                transform: perspective(1100px) rotateX(var(--octo-card-rx, 0deg)) rotateY(var(--octo-card-ry, 0deg)) translateY(var(--octo-card-lift, 0px)) scale(var(--octo-card-sc, 1)) !important;
+                transition: transform .12s ease, box-shadow .2s ease !important;
+                will-change: transform !important;
             }
-            /* 高档稀有度的外发光靠 shell 的 drop-shadow filter 溢出到 shell 外，
-             * Semi 弹窗容器默认会裁掉 → 放开裁切让金/彩虹光晕透出（shell 自身仍裁圆） */
+            .wk-bot-detail-modal .wk-modal-shell:hover {
+                --octo-card-lift: -4px;
+                --octo-card-sc: 1.015;
+                box-shadow: 0 42px 92px rgba(26, 22, 64, 0.46), 0 3px 10px rgba(26, 22, 64, 0.24) !important;
+            }
+            /* 金箔全息卡框（渐变描边 + mask 挖空只留 3px 边）；渐变缓慢流动 = 更强的全息感。
+             * --octo-frame 由稀有度覆盖(默认金箔)，UR=彩虹。 */
+            .wk-bot-detail-modal .wk-modal-shell::after {
+                content: "" !important;
+                position: absolute !important;
+                inset: 0 !important;
+                border-radius: 16px !important;
+                padding: 3px !important;
+                background: var(--octo-frame, linear-gradient(135deg, #fff6d0 0%, #f2d98a 12%, #ffffff 26%, #c9a24b 42%, #8a6a24 56%, #f2d98a 70%, #ffffff 84%, #c9a24b 100%)) !important;
+                background-size: 300% 300% !important;
+                -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
+                -webkit-mask-composite: xor !important;
+                        mask-composite: exclude !important;
+                pointer-events: none !important;
+                z-index: 4 !important;
+                animation: octo-frame-holo 6s linear infinite !important;
+            }
+            @keyframes octo-frame-holo {
+                0%   { background-position: 0% 50%; }
+                100% { background-position: 300% 50%; }
+            }
+            /* 全息流光：斜向高光带横扫(screen 混合只提亮，holo 卡质感)——加亮加宽 */
+            .wk-bot-detail-modal .wk-modal-shell::before {
+                content: "" !important;
+                position: absolute !important;
+                top: -30% !important;
+                left: -70% !important;
+                width: 65% !important;
+                height: 160% !important;
+                background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 34%, rgba(120, 220, 255, 0.6) 46%, rgba(255, 190, 255, 0.6) 54%, rgba(255, 255, 255, 0.5) 66%, transparent 100%) !important;
+                transform: skewX(-18deg) !important;
+                mix-blend-mode: screen !important;
+                pointer-events: none !important;
+                z-index: 3 !important;
+                animation: octo-card-holo 4.8s cubic-bezier(.5, 0, .5, 1) infinite !important;
+            }
+            @keyframes octo-card-holo {
+                0%   { left: -70%; opacity: 0; }
+                12%  { opacity: 1; }
+                55%  { opacity: 1; }
+                70%  { left: 150%; opacity: 0; }
+                100% { left: 150%; opacity: 0; }
+            }
+            /* 稀有度 → 卡框配色(--octo-frame) + 高档外发光 */
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]   { --octo-frame: linear-gradient(135deg,#d8dae2,#ffffff 28%,#b9bcc7 52%,#eef0f5 78%,#c7cad3) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="R"]   { --octo-frame: linear-gradient(135deg,#bfe0ff,#ffffff 26%,#3d7bd9 50%,#8fc0ff 74%,#2f6fd0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SR"]  { --octo-frame: linear-gradient(135deg,#f0d9ff,#ffffff 24%,#9b59e6 48%,#e0b3ff 72%,#7a3fd0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { --octo-frame: linear-gradient(135deg,#fff6d0,#f2d98a 18%,#ffffff 32%,#c9a24b 50%,#8a6a24 64%,#f2d98a 80%,#fff6d0) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { --octo-frame: linear-gradient(135deg,#ff5ac6,#ffd75e 20%,#5be6ff 40%,#b06bff 60%,#ff8a5a 80%,#ff5ac6) !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { filter: drop-shadow(0 0 13px rgba(240,200,90,0.55)); }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { filter: drop-shadow(0 0 15px rgba(150,120,255,0.6)) drop-shadow(0 0 26px rgba(120,220,255,0.4)); }
+            /* 3D 倾斜后，Semi 外层容器(白底+阴影)若不动会露在卡片后面「露两层」→ 透明化, 只留卡片本体倾斜。
+             * 同时 overflow:visible 让倾斜的卡片不被外层裁切。覆盖亮/暗两种(暗色段本给 .wk-modal 容器上过底色)。 */
             .wk-bot-detail-modal .semi-modal-content,
-            .wk-bot-detail-modal .semi-modal-body {
+            .wk-bot-detail-modal .semi-modal-body,
+            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-content,
+            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-body {
+                background: transparent !important;
+                box-shadow: none !important;
+                border: none !important;
                 overflow: visible !important;
             }
-            /* 内容：清顶 padding 给 banner，底部微暖白渐变，入场动效。position:relative 供稀有度角标定位 */
+            /* 内容：清顶 padding 给 banner，底部微暖白渐变，入场动效。
+             * flex 列布局 + 主题配色变量(结构共享，各主题只改这些变量的值)。 */
             .wk-bot-detail-content {
+                /* --- 配色变量：默认=赛博紫(亮)，暗色/世界杯各自覆盖 --- */
+                --octo-bd-panel-bg: #f5f5fc;
+                --octo-bd-panel-line: #e2e0f2;
+                --octo-bd-panel-div: #ecebf6;
+                --octo-bd-credit: #8a8ea6;
+                --octo-bd-credit-label: #a6a8c4;
+                display: flex !important;
+                flex-direction: column !important;
                 position: relative !important;
                 padding: 0 22px 22px !important;
                 background: radial-gradient(130% 70% at 50% 0%, #fbfbff 0%, #ffffff 58%) !important;
                 animation: octo-bot-in .3s cubic-bezier(.22,.8,.28,1) both !important;
             }
+            /* 跟手全息高光(glare)：hover 时在光标(--octo-card-mx/my, 由 JS 设)处浮现随动高光 + 微彩,
+             * screen 混合只提亮；配合 3D 倾斜 = 全息卡转动反光感。默认隐藏, hover 显现。 */
+            .wk-bot-detail-content::before {
+                content: "" !important;
+                position: absolute !important;
+                inset: 0 !important;
+                z-index: 2 !important;
+                pointer-events: none !important;
+                border-radius: 14px !important;
+                background: radial-gradient(circle at var(--octo-card-mx, 50%) var(--octo-card-my, 50%), rgba(255, 255, 255, 0.38) 0%, rgba(150, 210, 255, 0.20) 16%, rgba(255, 180, 240, 0.14) 30%, transparent 46%) !important;
+                mix-blend-mode: screen !important;
+                opacity: var(--octo-card-glare, 0) !important;
+                transition: opacity .22s ease !important;
+            }
+            .wk-bot-detail-modal .wk-modal-shell:hover { --octo-card-glare: 1; }
+
+            /* 稀有度角标：左上角徽章，文字取自 data-octo-rarity(JS 每次开卡随机)。纯 ::after，不注入 DOM。
+             * 右上角是关闭键 → 放左上角；默认 N 银色，各档配色见下；金箔/彩虹流光横扫。 */
+            .wk-bot-detail-content::after {
+                content: attr(data-octo-rarity) !important;
+                position: absolute !important;
+                top: 13px !important;
+                left: 13px !important;
+                z-index: 6 !important;
+                font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif !important;
+                font-style: italic !important;
+                font-weight: 900 !important;
+                font-size: 13px !important;
+                line-height: 1 !important;
+                letter-spacing: 0.5px !important;
+                color: #33363f !important;
+                padding: 5px 10px !important;
+                border-radius: 4px 9px 4px 9px !important;
+                background: linear-gradient(115deg, #b9bcc7 0%, #eef0f5 48%, #b9bcc7 100%) !important;
+                background-size: 220% 100% !important;
+                box-shadow:
+                    0 2px 7px rgba(0, 0, 0, 0.4),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) !important;
+                transform: rotate(-7deg) !important;
+                transform-origin: top left !important;
+                pointer-events: none !important;
+                animation: octo-ssr-foil 3.2s linear infinite !important;
+            }
+            /* 无稀有度属性时不显示角标(避免抽卡前空白框) */
+            .wk-bot-detail-content:not([data-octo-rarity])::after { content: none !important; }
+            /* 各档配色 */
+            .wk-bot-detail-content[data-octo-rarity="R"]::after {
+                color: #eaf2ff !important;
+                background: linear-gradient(115deg, #2f6fd0 0%, #9fc8ff 48%, #2f6fd0 100%) !important;
+                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="SR"]::after {
+                color: #f3e9ff !important;
+                background: linear-gradient(115deg, #7a3fd0 0%, #d9b3ff 48%, #7a3fd0 100%) !important;
+                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="SSR"]::after {
+                color: #4a3208 !important;
+                background: linear-gradient(115deg, #b8860b 0%, #f0c24a 30%, #fff6d0 48%, #f0c24a 62%, #b8860b 100%) !important;
+                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+            }
+            .wk-bot-detail-content[data-octo-rarity="UR"]::after {
+                color: #3a2a00 !important;
+                background: linear-gradient(115deg, #ff5ac6 0%, #ffd75e 25%, #5be6ff 50%, #b06bff 75%, #ff5ac6 100%) !important;
+                background-size: 300% 100% !important;
+                text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4) !important;
+                box-shadow:
+                    0 2px 9px rgba(120, 80, 220, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+                    inset 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
+            }
+            @keyframes octo-ssr-foil {
+                0%   { background-position: 220% 0; }
+                100% { background-position: -40% 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .wk-bot-detail-content::after { animation: none !important; }
+                .wk-bot-detail-modal .wk-modal-shell::after { animation: none !important; }
+            }
+
+            /* 稀有度差异拉大：N 卡框静态(朴素)；SSR/UR 卡框发光脉动 */
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]::after { animation: none !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { animation: octo-glow-ssr 2.2s ease-in-out infinite !important; }
+            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { animation: octo-glow-ur 1.9s ease-in-out infinite !important; }
+            @keyframes octo-glow-ssr {
+                0%, 100% { filter: drop-shadow(0 0 9px rgba(240,200,90,.45)); }
+                50%      { filter: drop-shadow(0 0 20px rgba(255,210,100,.8)); }
+            }
+            @keyframes octo-glow-ur {
+                0%, 100% { filter: drop-shadow(0 0 12px rgba(150,120,255,.5)) drop-shadow(0 0 22px rgba(120,220,255,.35)); }
+                50%      { filter: drop-shadow(0 0 22px rgba(190,120,255,.85)) drop-shadow(0 0 40px rgba(120,220,255,.6)); }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"],
+                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"] { animation: none !important; }
+            }
+
+            /* ===== 抽卡揭晓全屏特效(JS 注入 .octo-gacha-fx 到 body，播完自移除) ===== */
+            .octo-gacha-fx {
+                position: fixed !important;
+                inset: 0 !important;
+                z-index: 99999 !important;
+                pointer-events: none !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                overflow: hidden !important;
+                --fx: #ffcf5e;                 /* 默认金 */
+            }
+            .octo-gacha-fx[data-octo-rarity="SR"]  { --fx: #b884ff; --dim: .22; }
+            .octo-gacha-fx[data-octo-rarity="SSR"] { --fx: #ffcf5e; --dim: .34; }
+            .octo-gacha-fx[data-octo-rarity="UR"]  { --fx: #6be3ff; --dim: .46; }
+            /* 暗角背景:短暂压暗中心，让闪光/光线在浅色页面也能炸出来(screen 混合需要暗底) */
+            .octo-gacha-fx::before {
+                content: "" !important;
+                position: absolute !important;
+                inset: 0 !important;
+                background: radial-gradient(circle at 50% 45%, rgba(8,6,24,var(--dim, .3)) 0%, rgba(8,6,24,calc(var(--dim, .3) * .7)) 38%, transparent 74%) !important;
+                opacity: 0;
+                animation: octo-fx-dim .85s ease-out forwards !important;
+            }
+            @keyframes octo-fx-dim {
+                0%   { opacity: 0; }
+                18%  { opacity: 1; }
+                100% { opacity: 0; }
+            }
+            /* 中心闪光：径向爆闪 + 扩散淡出 */
+            .octo-gacha-flash {
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 64vmin !important;
+                height: 64vmin !important;
+                border-radius: 50% !important;
+                background: radial-gradient(circle, #ffffff 0%, var(--fx) 32%, transparent 70%) !important;
+                mix-blend-mode: screen !important;
+                opacity: 0;
+                animation: octo-fx-flash .72s ease-out forwards !important;
+            }
+            @keyframes octo-fx-flash {
+                0%   { transform: scale(.2); opacity: 0; }
+                16%  { opacity: 1; }
+                100% { transform: scale(1.9); opacity: 0; }
+            }
+            /* 放射光线(sunburst)：仅 SSR/UR；conic 光芒 + 环形挖空 + 旋转放大淡出 */
+            .octo-gacha-rays {
+                display: none;
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 150vmin !important;
+                height: 150vmin !important;
+                background: conic-gradient(from 0deg,
+                    transparent 0 7deg, rgba(255,255,255,.55) 7deg 8.5deg,
+                    transparent 8.5deg 22deg, var(--fx) 22deg 23.5deg,
+                    transparent 23.5deg 37deg, rgba(255,255,255,.4) 37deg 38.5deg,
+                    transparent 38.5deg 52deg, var(--fx) 52deg 53.5deg, transparent 53.5deg 67deg) !important;
+                -webkit-mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
+                        mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
+                mix-blend-mode: screen !important;
+                opacity: 0;
+            }
+            .octo-gacha-fx[data-octo-rarity="SSR"] .octo-gacha-rays,
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-rays {
+                display: block !important;
+                animation: octo-fx-rays 1.05s ease-out forwards !important;
+            }
+            @keyframes octo-fx-rays {
+                0%   { transform: rotate(-28deg) scale(.35); opacity: 0; }
+                22%  { opacity: .95; }
+                100% { transform: rotate(24deg) scale(1.35); opacity: 0; }
+            }
+            /* UR 彩虹光爆:整屏彩虹薄雾一闪 */
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-flash {
+                width: 90vmin !important; height: 90vmin !important;
+                background: radial-gradient(circle, #ffffff 0%, #ffd75e 22%, #5be6ff 44%, #b06bff 64%, transparent 78%) !important;
+            }
+            /* 亮片 sparkle:仅 UR，一簇白点 twinkle */
+            .octo-gacha-spark {
+                display: none;
+                position: absolute !important;
+                inset: 0 !important;
+                margin: auto !important;
+                width: 6px !important; height: 6px !important; border-radius: 50% !important;
+                background: #fff !important;
+                box-shadow:
+                    -30vmin -18vmin 0 0 #fff, 28vmin -22vmin 0 -1px #ffe9a8, -38vmin 14vmin 0 -1px #bfe6ff,
+                    34vmin 16vmin 0 0 #fff, 8vmin -30vmin 0 -1px #fff, -14vmin 26vmin 0 0 #ffd7f2,
+                    44vmin -6vmin 0 -1px #fff, -46vmin -4vmin 0 0 #d9c6ff !important;
+                opacity: 0;
+            }
+            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-spark {
+                display: block !important;
+                animation: octo-fx-spark 1.15s ease-out forwards !important;
+            }
+            @keyframes octo-fx-spark {
+                0%   { transform: scale(.4); opacity: 0; }
+                30%  { opacity: 1; }
+                100% { transform: scale(1.5); opacity: 0; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .octo-gacha-fx { display: none !important; }
+            }
 
             /* 头部：左对齐，承载 banner */
             .wk-bot-detail-header {
+                --octo-syn: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22120%22%20viewBox%3D%220%200%20400%20120%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23180f3a%22%2F%3E%3Cstop%20offset%3D%220.62%22%20stop-color%3D%22%233a1f6e%22%2F%3E%3Cstop%20offset%3D%220.99%22%20stop-color%3D%22%237a2f86%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22sun%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235be6ff%22%2F%3E%3Cstop%20offset%3D%220.5%22%20stop-color%3D%22%23b06bff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ff5ac6%22%2F%3E%3C%2FlinearGradient%3E%3CclipPath%20id%3D%22below%22%3E%3Crect%20x%3D%220%22%20y%3D%2284%22%20width%3D%22400%22%20height%3D%2236%22%2F%3E%3C%2FclipPath%3E%3C%2Fdefs%3E%3Crect%20width%3D%22400%22%20height%3D%22120%22%20fill%3D%22url(%23sky)%22%2F%3E%3Ccircle%20cx%3D%22270%22%20cy%3D%2284%22%20r%3D%2236%22%20fill%3D%22url(%23sun)%22%2F%3E%3Cg%20fill%3D%22%23180f3a%22%20opacity%3D%220.6%22%3E%3Crect%20x%3D%22228%22%20y%3D%2256%22%20width%3D%2284%22%20height%3D%223%22%2F%3E%3Crect%20x%3D%22226%22%20y%3D%2263%22%20width%3D%2288%22%20height%3D%224%22%2F%3E%3Crect%20x%3D%22224%22%20y%3D%2271%22%20width%3D%2292%22%20height%3D%225%22%2F%3E%3Crect%20x%3D%22222%22%20y%3D%2280%22%20width%3D%2296%22%20height%3D%226%22%2F%3E%3C%2Fg%3E%3Crect%20x%3D%220%22%20y%3D%2284%22%20width%3D%22400%22%20height%3D%2236%22%20fill%3D%22%230d0920%22%2F%3E%3Cg%20clip-path%3D%22url(%23below)%22%20stroke%3D%22%235be6ff%22%20stroke-opacity%3D%220.5%22%3E%3Cline%20x1%3D%220%22%20y1%3D%2284%22%20x2%3D%22400%22%20y2%3D%2284%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%2291%22%20x2%3D%22400%22%20y2%3D%2291%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%22102%22%20x2%3D%22400%22%20y2%3D%22102%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%22118%22%20x2%3D%22400%22%20y2%3D%22118%22%2F%3E%3C%2Fg%3E%3Cg%20clip-path%3D%22url(%23below)%22%20stroke%3D%22%23b06bff%22%20stroke-opacity%3D%220.5%22%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22-60%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%2270%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22170%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22230%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22270%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22320%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22400%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22520%22%20y2%3D%22120%22%2F%3E%3C%2Fg%3E%3Crect%20x%3D%220%22%20y%3D%2282.5%22%20width%3D%22400%22%20height%3D%222%22%20fill%3D%22%237df0ff%22%2F%3E%3C%2Fsvg%3E") !important;
                 align-items: flex-start !important;
+                display: flex !important;
+                flex-direction: column !important;
+                order: 0 !important;
                 position: relative !important;
-                padding-top: 132px !important;
-                margin-bottom: 6px !important;
+                padding: 0 !important;
+                margin: 0 0 6px !important;
+                overflow: visible !important;
             }
-            /* banner 主体（浅色 cyberpunk）：淡紫底 + 霓虹青/品红 mesh + 底部霓虹青横线发光 */
+            /* banner 主体 → synthwave/outrun 落日场景（内联 SVG 存于 --octo-syn；亮/暗共用, 世界杯另覆盖绿茵） */
             .wk-bot-detail-header::before {
                 content: "" !important;
                 position: absolute !important;
                 top: 0 !important;
                 left: -22px !important;
                 right: -22px !important;
-                height: 120px !important;
-                background:
-                    radial-gradient(62% 120% at 14% 0%, rgba(0, 220, 255, 0.32) 0%, transparent 56%),
-                    radial-gradient(70% 130% at 92% 0%, rgba(255, 70, 210, 0.28) 0%, transparent 58%),
-                    linear-gradient(118deg, #e7ecff 0%, #efe8ff 50%, #e0f3ff 100%) !important;
-                border-radius: 18px 18px 0 0 !important;
-                box-shadow:
-                    inset 0 -2px 0 0 rgba(0, 224, 255, 0.60),
-                    inset 0 -10px 16px -6px rgba(124, 60, 240, 0.28) !important;
-                animation: octo-bot-neon 4s linear infinite, octo-glitch 5.5s linear infinite !important;
+                bottom: auto !important;
+                height: 176px !important;
+                background: var(--octo-syn) center bottom / cover no-repeat, #150e34 !important;
+                border-radius: 16px 16px 0 0 !important;
+                box-shadow: inset 0 -3px 0 0 rgba(198, 160, 74, 0.9) !important;
                 z-index: 0 !important;
             }
-            /* banner 霓虹网格（cyberpunk tron grid：竖紫 + 横青细线） */
+            /* banner 叠加 CRT 扫描线（synthwave 质感） */
             .wk-bot-detail-header::after {
                 content: "" !important;
                 position: absolute !important;
                 top: 0 !important;
                 left: -22px !important;
                 right: -22px !important;
-                height: 120px !important;
-                background-image:
-                    linear-gradient(180deg, transparent 40%, rgba(0, 229, 255, 0.5) 50%, transparent 60%),
-                    repeating-linear-gradient(90deg, transparent 0 15px, rgba(124, 92, 240, 0.16) 15px 16px),
-                    repeating-linear-gradient(0deg, transparent 0 15px, rgba(0, 196, 240, 0.14) 15px 16px) !important;
-                background-size: 100% 54px, auto, auto !important;
-                background-repeat: no-repeat, repeat, repeat !important;
-                border-radius: 18px 18px 0 0 !important;
-                animation: octo-bot-grid 3s linear infinite !important;
+                height: 176px !important;
+                background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 3px) !important;
+                border-radius: 16px 16px 0 0 !important;
                 pointer-events: none !important;
                 z-index: 0 !important;
             }
 
-            /* 头像：圆形 + 白环 + 品牌紫光晕环 + 浮起投影，压在 banner 底边 */
+            /* 头像：居中大圆头像 + 白环 + 金环(与金卡框呼应) + 浮起投影，浮在 banner 上 */
             .wk-bot-detail-avatar {
                 position: relative !important;
                 z-index: 1 !important;
-                width: 84px !important;
-                height: 84px !important;
-                margin-top: -50px !important;
+                align-self: center !important;
+                width: 150px !important;
+                height: 150px !important;
+                margin: 16px 0 0 !important;
                 border-radius: 50% !important;
                 overflow: hidden !important;
                 background: #fff !important;
                 box-shadow:
-                    0 0 0 4px #fff,
-                    0 0 0 5px rgba(124, 107, 240, 0.5),
-                    0 10px 24px rgba(40, 30, 90, 0.30) !important;
+                    0 0 0 3px rgba(255, 255, 255, 0.92),
+                    0 0 0 4px rgba(198, 160, 74, 0.95),
+                    0 10px 22px rgba(0, 0, 0, 0.42) !important;
             }
             /* 头像内部不论 img / semi-image / WKAvatar(.wk-avatar)，统一放大并裁圆
              * (.wk-avatar 原生仅 40px，且 WKAvatar 不消费 size prop → 这里强制撑满父容器) */
@@ -801,9 +1074,10 @@ const BEAUTIFY_CSS = `            :root {
                 object-fit: cover !important;
             }
 
-            /* 名字 / handle 左对齐 */
+            /* 名字 / handle：落到 banner 下白底，左对齐 */
             .wk-bot-detail-name {
-                margin-top: 14px !important;
+                align-self: flex-start !important;
+                margin-top: 16px !important;
                 font-size: 21px !important;
                 font-weight: 700 !important;
                 letter-spacing: 0.2px !important;
@@ -825,41 +1099,97 @@ const BEAUTIFY_CSS = `            :root {
             }
             .wk-bot-detail-id {
                 align-self: flex-start !important;
-                margin-top: 3px !important;
+                margin-top: 6px !important;
                 font-size: 13px !important;
                 color: #9a9db0 !important;
             }
+            /* 状态 chip（🔌 未上报 Agent 信息 + ?）全主题隐藏 */
             .wk-bot-detail-octopush-chip {
-                margin-left: 0 !important;
-                margin-right: 0 !important;
-                margin-top: 10px !important;
+                display: none !important;
             }
 
-            /* 信息字段 → 赛博 HUD 面板：右上切角 + 紫→青霓虹左条（呼应 banner 紫青）+ 浅底可读 */
+            /* 信息字段 → 备注/简介等「非创建者」合成一个大框(连续面板)；命令面板单独一块；
+             * 创建者移到最底部作署名。颜色用主题变量(--octo-bd-panel-*)，结构全主题共享。
+             * 字段由 JS 按标签打 data-octo-field / data-octo-group 标记(见 tagBotDetailFields)。 */
             .wk-bot-detail-desc,
             .wk-bot-detail-commands {
                 position: relative !important;
-                border: 1px solid #e2e0f2 !important;
-                border-radius: 0 !important;
-                background: #f5f5fc !important;
-                clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 0 100%) !important;
                 padding: 12px 15px !important;
-                margin-bottom: 9px !important;
                 font-size: 14px !important;
                 color: #2e2e44 !important;
+                background: var(--octo-bd-panel-bg) !important;
             }
-            /* 紫→青霓虹左条（呼应 banner，取代 CP2077 黄） */
+            /* 面板不再用霓虹左条(避免大框里多条竖线) */
             .wk-bot-detail-desc::before,
-            .wk-bot-detail-commands::before {
-                content: "" !important;
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                bottom: 0 !important;
-                width: 3px !important;
-                background: linear-gradient(180deg, #7c6bf0, #00c4f0) !important;
-                box-shadow: 0 0 6px rgba(0, 196, 240, 0.45) !important;
+            .wk-bot-detail-commands::before { display: none !important; }
+            /* 备注/简介等 → 连续大框 */
+            .wk-bot-detail-desc:not([data-octo-field="creator"]) {
+                order: 1 !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                border-left: 1px solid var(--octo-bd-panel-line) !important;
+                border-right: 1px solid var(--octo-bd-panel-line) !important;
+                border-top: none !important;
+                border-bottom: none !important;
+                clip-path: none !important;
             }
+            .wk-bot-detail-desc[data-octo-group="first"],
+            .wk-bot-detail-desc[data-octo-group="solo"] {
+                border-top: 1px solid var(--octo-bd-panel-line) !important;
+                border-radius: 12px 12px 0 0 !important;
+                margin-top: 4px !important;
+            }
+            .wk-bot-detail-desc[data-octo-group="mid"],
+            .wk-bot-detail-desc[data-octo-group="last"] {
+                border-top: 1px solid var(--octo-bd-panel-div) !important;
+            }
+            .wk-bot-detail-desc[data-octo-group="last"] {
+                border-bottom: 1px solid var(--octo-bd-panel-line) !important;
+                border-radius: 0 0 12px 12px !important;
+            }
+            .wk-bot-detail-desc[data-octo-group="solo"] {
+                border-bottom: 1px solid var(--octo-bd-panel-line) !important;
+                border-radius: 12px !important;
+            }
+            /* 命令面板：单独一块(整框)，排在大框下、按钮上 */
+            .wk-bot-detail-commands {
+                order: 2 !important;
+                margin: 12px 0 0 !important;
+                border: 1px solid var(--octo-bd-panel-line) !important;
+                border-radius: 12px !important;
+                clip-path: none !important;
+            }
+            /* 发送/添加好友按钮排大框(及命令)下方 */
+            .wk-bot-detail-modal .semi-button-block:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
+                order: 3 !important;
+            }
+            /* 创建者 → 最底部作者署名(小字、居中、无框) */
+            .wk-bot-detail-desc[data-octo-field="creator"] {
+                order: 5 !important;
+                margin: 12px 0 2px !important;
+                padding: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                clip-path: none !important;
+                text-align: center !important;
+                font-size: 12px !important;
+                color: var(--octo-bd-credit) !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: baseline !important;
+                gap: 6px !important;
+            }
+            .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label {
+                background: transparent !important;
+                color: var(--octo-bd-credit-label) !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 11px !important;
+                letter-spacing: 0.06em !important;
+                text-transform: none !important;
+                clip-path: none !important;
+            }
+            .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label::before { content: "" !important; }
             /* 标签 → 浅紫 chip + 紫等宽字 + // 前缀（右下斜切，轻量 HUD tag，与 banner 同色系） */
             .wk-bot-detail-label {
                 display: inline-block !important;
@@ -909,15 +1239,15 @@ const BEAUTIFY_CSS = `            :root {
                 filter: brightness(1.05) !important;
             }
 
-            /* 关闭按钮位于浅色 banner 之上 → 深灰，保证可读 */
+            /* 关闭按钮位于深色 synthwave banner 之上 → 浅色，保证可读 */
             .wk-bot-detail-modal .semi-modal-close,
             .wk-bot-detail-modal .semi-modal-close .semi-icon,
             .wk-bot-detail-modal .semi-modal-close svg {
-                color: #4a4a5e !important;
-                fill: #4a4a5e !important;
+                color: #dfe3ee !important;
+                fill: #dfe3ee !important;
             }
             .wk-bot-detail-modal .semi-modal-close:hover {
-                background: rgba(74, 74, 94, 0.10) !important;
+                background: rgba(255, 255, 255, 0.14) !important;
                 border-radius: 8px !important;
             }
 
@@ -928,254 +1258,8 @@ const BEAUTIFY_CSS = `            :root {
                     animation: none !important;
                 }
                 .wk-bot-detail-content { animation: none !important; }
-            }
-
-            /* ========================================================
-             * Bot 资料卡「抽卡」—— 每次打开随机一个稀有度（宝可梦式档位），
-             * JS 把 data-octo-rarity 写到 shell + content，CSS 据此渲染：
-             *   · 金箔全息卡框（shell::after，各档配色）+ 全息流光横扫（shell::before）
-             *   · 稀有度角标（content::after，content: attr(data-octo-rarity)）
-             *   · SSR/UR 外发光脉动
-             *   · 开卡揭晓全屏特效（JS 注入 .octo-gacha-fx 到 body，播完自移除）
-             * 纯 CSS 覆盖 + 只读随机，不动源码。
-             * ====================================================== */
-            /* 金箔全息卡框：渐变描边 + mask 挖空只留 3px 边；渐变缓慢流动 = 全息感。
-             * --octo-frame 由稀有度覆盖（默认金箔），UR=彩虹。 */
-            .wk-bot-detail-modal .wk-modal-shell::after {
-                content: "" !important;
-                position: absolute !important;
-                inset: 0 !important;
-                border-radius: 18px !important;
-                padding: 3px !important;
-                background: var(--octo-frame, linear-gradient(135deg, #fff6d0 0%, #f2d98a 12%, #ffffff 26%, #c9a24b 42%, #8a6a24 56%, #f2d98a 70%, #ffffff 84%, #c9a24b 100%)) !important;
-                background-size: 300% 300% !important;
-                -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0) !important;
-                -webkit-mask-composite: xor !important;
-                        mask-composite: exclude !important;
-                pointer-events: none !important;
-                z-index: 4 !important;
-                animation: octo-frame-holo 6s linear infinite !important;
-            }
-            @keyframes octo-frame-holo {
-                0%   { background-position: 0% 50%; }
-                100% { background-position: 300% 50%; }
-            }
-            /* 全息流光：斜向高光带横扫（screen 混合只提亮，holo 卡质感） */
-            .wk-bot-detail-modal .wk-modal-shell::before {
-                content: "" !important;
-                position: absolute !important;
-                top: -30% !important;
-                left: -70% !important;
-                width: 65% !important;
-                height: 160% !important;
-                background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.5) 34%, rgba(120, 220, 255, 0.6) 46%, rgba(255, 190, 255, 0.6) 54%, rgba(255, 255, 255, 0.5) 66%, transparent 100%) !important;
-                transform: skewX(-18deg) !important;
-                mix-blend-mode: screen !important;
-                pointer-events: none !important;
-                z-index: 3 !important;
-                animation: octo-card-holo 4.8s cubic-bezier(.5, 0, .5, 1) infinite !important;
-            }
-            @keyframes octo-card-holo {
-                0%   { left: -70%; opacity: 0; }
-                12%  { opacity: 1; }
-                55%  { opacity: 1; }
-                70%  { left: 150%; opacity: 0; }
-                100% { left: 150%; opacity: 0; }
-            }
-            /* 稀有度 → 卡框配色（--octo-frame） */
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]   { --octo-frame: linear-gradient(135deg,#d8dae2,#ffffff 28%,#b9bcc7 52%,#eef0f5 78%,#c7cad3) !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="R"]   { --octo-frame: linear-gradient(135deg,#bfe0ff,#ffffff 26%,#3d7bd9 50%,#8fc0ff 74%,#2f6fd0) !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SR"]  { --octo-frame: linear-gradient(135deg,#f0d9ff,#ffffff 24%,#9b59e6 48%,#e0b3ff 72%,#7a3fd0) !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { --octo-frame: linear-gradient(135deg,#fff6d0,#f2d98a 18%,#ffffff 32%,#c9a24b 50%,#8a6a24 64%,#f2d98a 80%,#fff6d0) !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { --octo-frame: linear-gradient(135deg,#ff5ac6,#ffd75e 20%,#5be6ff 40%,#b06bff 60%,#ff8a5a 80%,#ff5ac6) !important; }
-
-            /* 稀有度差异拉大：N 卡框静态（朴素）；SSR/UR 卡框发光脉动 */
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="N"]::after { animation: none !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"] { animation: octo-glow-ssr 2.2s ease-in-out infinite !important; }
-            .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"]  { animation: octo-glow-ur 1.9s ease-in-out infinite !important; }
-            @keyframes octo-glow-ssr {
-                0%, 100% { filter: drop-shadow(0 0 9px rgba(240,200,90,.45)); }
-                50%      { filter: drop-shadow(0 0 20px rgba(255,210,100,.8)); }
-            }
-            @keyframes octo-glow-ur {
-                0%, 100% { filter: drop-shadow(0 0 12px rgba(150,120,255,.5)) drop-shadow(0 0 22px rgba(120,220,255,.35)); }
-                50%      { filter: drop-shadow(0 0 22px rgba(190,120,255,.85)) drop-shadow(0 0 40px rgba(120,220,255,.6)); }
-            }
-
-            /* 稀有度角标：左上角徽章，文字取自 data-octo-rarity（JS 每次开卡随机）。纯 ::after，不注入 DOM。
-             * 右上角是关闭键 → 放左上角；默认 N 银色，各档配色见下；金箔/彩虹流光横扫。 */
-            .wk-bot-detail-content::after {
-                content: attr(data-octo-rarity) !important;
-                position: absolute !important;
-                top: 13px !important;
-                left: 13px !important;
-                z-index: 6 !important;
-                font-family: -apple-system, "SF Pro Display", "PingFang SC", sans-serif !important;
-                font-style: italic !important;
-                font-weight: 900 !important;
-                font-size: 13px !important;
-                line-height: 1 !important;
-                letter-spacing: 0.5px !important;
-                color: #33363f !important;
-                padding: 5px 10px !important;
-                border-radius: 4px 9px 4px 9px !important;
-                background: linear-gradient(115deg, #b9bcc7 0%, #eef0f5 48%, #b9bcc7 100%) !important;
-                background-size: 220% 100% !important;
-                box-shadow:
-                    0 2px 7px rgba(0, 0, 0, 0.4),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-                    inset 0 0 0 1px rgba(255, 255, 255, 0.35) !important;
-                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) !important;
-                transform: rotate(-7deg) !important;
-                transform-origin: top left !important;
-                pointer-events: none !important;
-                animation: octo-ssr-foil 3.2s linear infinite !important;
-            }
-            /* 无稀有度属性时不显示角标（避免抽卡前空白框） */
-            .wk-bot-detail-content:not([data-octo-rarity])::after { content: none !important; }
-            /* 各档配色 */
-            .wk-bot-detail-content[data-octo-rarity="R"]::after {
-                color: #eaf2ff !important;
-                background: linear-gradient(115deg, #2f6fd0 0%, #9fc8ff 48%, #2f6fd0 100%) !important;
-                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
-            }
-            .wk-bot-detail-content[data-octo-rarity="SR"]::after {
-                color: #f3e9ff !important;
-                background: linear-gradient(115deg, #7a3fd0 0%, #d9b3ff 48%, #7a3fd0 100%) !important;
-                text-shadow: 0 1px 1px rgba(0, 0, 0, 0.35) !important;
-            }
-            .wk-bot-detail-content[data-octo-rarity="SSR"]::after {
-                color: #4a3208 !important;
-                background: linear-gradient(115deg, #b8860b 0%, #f0c24a 30%, #fff6d0 48%, #f0c24a 62%, #b8860b 100%) !important;
-                text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) !important;
-            }
-            .wk-bot-detail-content[data-octo-rarity="UR"]::after {
-                color: #3a2a00 !important;
-                background: linear-gradient(115deg, #ff5ac6 0%, #ffd75e 25%, #5be6ff 50%, #b06bff 75%, #ff5ac6 100%) !important;
-                background-size: 300% 100% !important;
-                text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4) !important;
-                box-shadow:
-                    0 2px 9px rgba(120, 80, 220, 0.5),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.8),
-                    inset 0 0 0 1px rgba(255, 255, 255, 0.5) !important;
-            }
-            @keyframes octo-ssr-foil {
-                0%   { background-position: 220% 0; }
-                100% { background-position: -40% 0; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-                .wk-bot-detail-content::after,
-                .wk-bot-detail-modal .wk-modal-shell::before,
-                .wk-bot-detail-modal .wk-modal-shell::after,
-                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="SSR"],
-                .wk-bot-detail-modal .wk-modal-shell[data-octo-rarity="UR"] { animation: none !important; }
-            }
-
-            /* ===== 开卡揭晓全屏特效（JS 注入 .octo-gacha-fx 到 body，播完自移除） ===== */
-            .octo-gacha-fx {
-                position: fixed !important;
-                inset: 0 !important;
-                z-index: 99999 !important;
-                pointer-events: none !important;
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
-                overflow: hidden !important;
-                --fx: #ffcf5e;                 /* 默认金 */
-            }
-            .octo-gacha-fx[data-octo-rarity="SR"]  { --fx: #b884ff; --dim: .22; }
-            .octo-gacha-fx[data-octo-rarity="SSR"] { --fx: #ffcf5e; --dim: .34; }
-            .octo-gacha-fx[data-octo-rarity="UR"]  { --fx: #6be3ff; --dim: .46; }
-            /* 暗角背景：短暂压暗中心，让闪光/光线在浅色页面也能炸出来（screen 混合需要暗底） */
-            .octo-gacha-fx::before {
-                content: "" !important;
-                position: absolute !important;
-                inset: 0 !important;
-                background: radial-gradient(circle at 50% 45%, rgba(8,6,24,var(--dim, .3)) 0%, rgba(8,6,24,calc(var(--dim, .3) * .7)) 38%, transparent 74%) !important;
-                opacity: 0;
-                animation: octo-fx-dim .85s ease-out forwards !important;
-            }
-            @keyframes octo-fx-dim {
-                0%   { opacity: 0; }
-                18%  { opacity: 1; }
-                100% { opacity: 0; }
-            }
-            /* 中心闪光：径向爆闪 + 扩散淡出 */
-            .octo-gacha-flash {
-                position: absolute !important;
-                inset: 0 !important;
-                margin: auto !important;
-                width: 64vmin !important;
-                height: 64vmin !important;
-                border-radius: 50% !important;
-                background: radial-gradient(circle, #ffffff 0%, var(--fx) 32%, transparent 70%) !important;
-                mix-blend-mode: screen !important;
-                opacity: 0;
-                animation: octo-fx-flash .72s ease-out forwards !important;
-            }
-            @keyframes octo-fx-flash {
-                0%   { transform: scale(.2); opacity: 0; }
-                16%  { opacity: 1; }
-                100% { transform: scale(1.9); opacity: 0; }
-            }
-            /* 放射光线（sunburst）：仅 SSR/UR；conic 光芒 + 环形挖空 + 旋转放大淡出 */
-            .octo-gacha-rays {
-                display: none;
-                position: absolute !important;
-                inset: 0 !important;
-                margin: auto !important;
-                width: 150vmin !important;
-                height: 150vmin !important;
-                background: conic-gradient(from 0deg,
-                    transparent 0 7deg, rgba(255,255,255,.55) 7deg 8.5deg,
-                    transparent 8.5deg 22deg, var(--fx) 22deg 23.5deg,
-                    transparent 23.5deg 37deg, rgba(255,255,255,.4) 37deg 38.5deg,
-                    transparent 38.5deg 52deg, var(--fx) 52deg 53.5deg, transparent 53.5deg 67deg) !important;
-                -webkit-mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
-                        mask: radial-gradient(circle, transparent 16%, #000 24%) !important;
-                mix-blend-mode: screen !important;
-                opacity: 0;
-            }
-            .octo-gacha-fx[data-octo-rarity="SSR"] .octo-gacha-rays,
-            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-rays {
-                display: block !important;
-                animation: octo-fx-rays 1.05s ease-out forwards !important;
-            }
-            @keyframes octo-fx-rays {
-                0%   { transform: rotate(-28deg) scale(.35); opacity: 0; }
-                22%  { opacity: .95; }
-                100% { transform: rotate(24deg) scale(1.35); opacity: 0; }
-            }
-            /* UR 彩虹光爆：整屏彩虹薄雾一闪 */
-            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-flash {
-                width: 90vmin !important; height: 90vmin !important;
-                background: radial-gradient(circle, #ffffff 0%, #ffd75e 22%, #5be6ff 44%, #b06bff 64%, transparent 78%) !important;
-            }
-            /* 亮片 sparkle：仅 UR，一簇白点 twinkle */
-            .octo-gacha-spark {
-                display: none;
-                position: absolute !important;
-                inset: 0 !important;
-                margin: auto !important;
-                width: 6px !important; height: 6px !important; border-radius: 50% !important;
-                background: #fff !important;
-                box-shadow:
-                    -30vmin -18vmin 0 0 #fff, 28vmin -22vmin 0 -1px #ffe9a8, -38vmin 14vmin 0 -1px #bfe6ff,
-                    34vmin 16vmin 0 0 #fff, 8vmin -30vmin 0 -1px #fff, -14vmin 26vmin 0 0 #ffd7f2,
-                    44vmin -6vmin 0 -1px #fff, -46vmin -4vmin 0 0 #d9c6ff !important;
-                opacity: 0;
-            }
-            .octo-gacha-fx[data-octo-rarity="UR"] .octo-gacha-spark {
-                display: block !important;
-                animation: octo-fx-spark 1.15s ease-out forwards !important;
-            }
-            @keyframes octo-fx-spark {
-                0%   { transform: scale(.4); opacity: 0; }
-                30%  { opacity: 1; }
-                100% { transform: scale(1.5); opacity: 0; }
-            }
-            @media (prefers-reduced-motion: reduce) {
-                .octo-gacha-fx { display: none !important; }
+                .wk-bot-detail-modal .wk-modal-shell::before { animation: none !important; opacity: 0 !important; }
+                .wk-bot-detail-content::before { display: none !important; }
             }
 
             /* ========================================================
@@ -1834,20 +1918,20 @@ const BEAUTIFY_CSS = `            :root {
                 color: #9296a8 !important;
             }
 
-            /* ---- Bot 资料卡 ---- */
+            /* ---- Bot 资料卡：暗色只改配色变量(结构继承基础层) ---- */
             body[theme-mode="dark"] .wk-bot-detail-content {
+                --octo-bd-panel-bg: #211d38;
+                --octo-bd-panel-line: rgba(124, 107, 240, 0.30);
+                --octo-bd-panel-div: rgba(124, 107, 240, 0.16);
+                --octo-bd-credit: #9a9db8;
+                --octo-bd-credit-label: #8f92ad;
                 background: radial-gradient(130% 70% at 50% 0%, #1a1733 0%, #121022 58%) !important;
             }
             body[theme-mode="dark"] .wk-bot-detail-header::before {
-                background:
-                    radial-gradient(62% 120% at 14% 0%, rgba(0, 220, 255, 0.32) 0%, transparent 56%),
-                    radial-gradient(70% 130% at 92% 0%, rgba(255, 70, 210, 0.28) 0%, transparent 58%),
-                    linear-gradient(118deg, #161430 0%, #1a1535 50%, #101a2e 100%) !important;
+                background: var(--octo-syn) center bottom / cover no-repeat, #0d0920 !important;
             }
             body[theme-mode="dark"] .wk-bot-detail-desc,
             body[theme-mode="dark"] .wk-bot-detail-commands {
-                background: #211d38 !important;
-                border-color: rgba(124, 107, 240, 0.24) !important;
                 color: #d4d5e4 !important;
             }
             body[theme-mode="dark"] .wk-bot-detail-label {
@@ -2318,6 +2402,231 @@ const BEAUTIFY_CSS = `            :root {
                 background: linear-gradient(160deg, #E8C56B 0%, #B68A2E 55%, #9A6E2E 100%) !important;
                 color: #2A2206 !important;
                 -webkit-text-fill-color: #2A2206 !important;
+            }
+            /* ---- 世界杯下 Bot 卡「内胆」世界杯化：banner 绿茵球场 + 暖纸金面板 + 金按钮（卡框/流光/3D 仍是基础层）---- */
+            /* 头部 → 方案B「悬浮完整头像」：上部深场球场渐变 banner，头像 contain 居中悬浮(完整不裁)，
+             * 名字/@handle 落到 banner 下白底左对齐；状态 chip 隐藏。 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header {
+                position: relative !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                padding: 0 !important;
+                margin: 0 0 6px !important;
+                overflow: visible !important;
+            }
+            /* banner：深绿球场 → 夜蓝渐变(全宽出血)，托住悬浮头像，底部金色底线 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header::before {
+                content: "" !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: -22px !important;
+                right: -22px !important;
+                bottom: auto !important;
+                height: 176px !important;
+                background:
+                    radial-gradient(70% 90% at 50% 30%, rgba(255,216,130,0.28), transparent 60%),
+                    radial-gradient(130% 100% at 50% 0%, #1d7a54 0%, #0f4374 55%, #0a2a52 100%) !important;
+                border-radius: 16px 16px 0 0 !important;
+                box-shadow: inset 0 -3px 0 0 rgba(198,160,74,0.95) !important;
+                z-index: 0 !important;
+                animation: none !important;
+            }
+            /* banner 金色 refractor 镀铬光(screen 提亮) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header::after {
+                content: "" !important;
+                position: absolute !important;
+                top: 0 !important;
+                left: -22px !important;
+                right: -22px !important;
+                bottom: auto !important;
+                height: 176px !important;
+                background:
+                    repeating-linear-gradient(116deg, transparent 0 7px, rgba(255,240,200,0.10) 7px 8px),
+                    radial-gradient(120% 80% at 74% 8%, rgba(255,220,130,0.30), transparent 55%) !important;
+                border-radius: 16px 16px 0 0 !important;
+                mix-blend-mode: screen !important;
+                pointer-events: none !important;
+                z-index: 0 !important;
+                animation: none !important;
+            }
+            /* 头像 → 居中悬浮、完整展示(contain 零裁切)。固定 150×150 白底金边方框：
+             * 无论头像原始比例如何，方框尺寸恒定 → 各卡头像方块大小一致(正方形填满、非方形框内留白)。 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar {
+                position: relative !important;
+                z-index: 1 !important;
+                align-self: center !important;
+                width: 150px !important;
+                height: 150px !important;
+                margin: 16px 0 0 !important;
+                border-radius: 16px !important;
+                overflow: hidden !important;
+                background: #fff !important;
+                box-shadow:
+                    0 0 0 3px rgba(255,255,255,0.92),
+                    0 0 0 4px rgba(198,160,74,0.95),
+                    0 10px 22px rgba(0,0,0,0.42) !important;
+            }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar > *,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .wk-avatar,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image-img,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar img {
+                width: 100% !important;
+                height: 100% !important;
+                border-radius: 14px !important;
+                object-fit: contain !important;
+                object-position: center !important;
+            }
+            /* 名字 → 落到 banner 下白底，左对齐斜体铭牌(金流光继承基础世界杯规则) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-name {
+                position: static !important;
+                align-self: flex-start !important;
+                margin: 16px 0 0 !important;
+                font-size: 22px !important;
+                font-weight: 800 !important;
+                font-style: italic !important;
+                letter-spacing: 0.04em !important;
+            }
+            /* @handle → 蓝位置条，名字下方 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-id {
+                position: static !important;
+                align-self: flex-start !important;
+                margin: 6px 0 0 !important;
+                padding: 3px 12px !important;
+                border-radius: 6px !important;
+                background: linear-gradient(90deg, #123a86, #1e56b0) !important;
+                color: #eaf1ff !important;
+                font-weight: 700 !important;
+                letter-spacing: 0.05em !important;
+            }
+            /* 状态 chip（🔌 未上报 Agent 信息 + ?）不展示 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-octopush-chip { display: none !important; }
+            /* 信息面板：赛博切角 HUD → 暖纸卡 + 金左条 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-commands {
+                background: #FBF8F0 !important;
+                border: 1px solid #EBE1CC !important;
+                border-radius: 10px !important;
+                clip-path: none !important;
+                color: #1C1B19 !important;
+            }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc::before,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-commands::before {
+                background: linear-gradient(180deg, #C6A04A, #8a6a24) !important;
+                box-shadow: none !important;
+                width: 3px !important;
+            }
+            /* 标签 // HUD → 去前缀 + 金 chip */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-label {
+                color: #8a6a24 !important;
+                background: rgba(198, 160, 74, 0.16) !important;
+                clip-path: none !important;
+                border-radius: 4px !important;
+            }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-label::before { content: "" !important; }
+            /* 命令名 / 编辑入口：赛博青 → 松绿 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-cmd-name,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-edit-action,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-value-edit { color: #0B6E4F !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-cmd-desc { color: #5b5344 !important; }
+            /* 发送键：品牌紫 → 金箔 + 深字 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-button-block.semi-button-primary:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
+                background: linear-gradient(120deg, #E8C56B, #C6A04A) !important;
+                color: #1C1B19 !important;
+                box-shadow: 0 6px 16px rgba(160, 120, 20, 0.35) !important;
+            }
+            /* 关闭键：深绿 banner 上 → 白色可见 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close .semi-icon,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close svg {
+                color: #ffffff !important;
+                fill: #ffffff !important;
+            }
+
+            /* ---- 世界杯 Bot 卡改版：圆形头像 + 备注/简介合成大框 + 创建者移到底部作署名 ----
+             * 字段由 JS 按标签文字打 data-octo-field / data-octo-group 标记(见 tagBotDetailFields)，
+             * 排序用 flex order(不搬 DOM，避免干扰 React)。 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-content {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header { order: 0 !important; }
+            /* 圆形头像遮罩(保持 150 尺寸；白金环随之变圆) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar { border-radius: 50% !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar > *,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .wk-avatar,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image-img,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar img {
+                border-radius: 50% !important;
+                object-fit: cover !important;    /* 圆形头像用 cover 填满 */
+            }
+            /* 面板霓虹左条去掉(避免大框里出现多条竖线) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc::before,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-commands::before { display: none !important; }
+            /* 备注/简介等「非创建者」字段 → 合成一个大框(连续面板拼接) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc:not([data-octo-field="creator"]) {
+                order: 1 !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                border-left: 1px solid #EBE1CC !important;
+                border-right: 1px solid #EBE1CC !important;
+                border-top: none !important;
+                border-bottom: none !important;
+                background: #FBF8F0 !important;
+            }
+            /* 大框顶(第一项)：上圆角 + 上边框 + 组上间距 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="first"],
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="solo"] {
+                border-top: 1px solid #EBE1CC !important;
+                border-radius: 12px 12px 0 0 !important;
+                margin-top: 4px !important;
+            }
+            /* 中段/末项：顶部加分隔线 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="mid"],
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="last"] {
+                border-top: 1px solid #EFE7D2 !important;
+            }
+            /* 大框底(末项)：下圆角 + 下边框 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="last"] {
+                border-bottom: 1px solid #EBE1CC !important;
+                border-radius: 0 0 12px 12px !important;
+            }
+            /* 只有一项时(solo)：四边成框 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="solo"] {
+                border-bottom: 1px solid #EBE1CC !important;
+                border-radius: 12px !important;
+            }
+            /* 命令面板单独一块，排在大框下、按钮上 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-commands { order: 2 !important; margin-top: 12px !important; }
+            /* 发送/添加好友按钮排大框(及命令)下方 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-button-block:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
+                order: 3 !important;
+            }
+            /* 创建者 → 最底部作者署名(小字、居中、无框) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-field="creator"] {
+                order: 5 !important;
+                margin: 12px 0 2px !important;
+                padding: 0 !important;
+                border: none !important;
+                background: transparent !important;
+                clip-path: none !important;
+                text-align: center !important;
+                font-size: 12px !important;
+                color: #8a7a52 !important;
+                display: flex !important;
+                justify-content: center !important;
+                align-items: baseline !important;
+                gap: 6px !important;
+            }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label {
+                background: transparent !important;
+                color: #b0a074 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                font-size: 11px !important;
+                letter-spacing: 0.06em !important;
             }
 
             /* ---- 引用块 → 球门：accent 门框(横梁+门柱) + 淡菱形网；hover 踢球时球门网抖动(进球入网)联动 ---- */
@@ -2955,6 +3264,74 @@ function rollBotCardRarity(): void {
     });
 }
 
+// ---- bot profile card: tag fields + 3D pointer tilt ------------------------
+
+/**
+ * Tag each field row by its label text so CSS can lay the card out stably:
+ * 备注/简介/… collapse into one continuous framed panel, 创建者 moves to a
+ * bottom credit line. Recognized by label text (order-independent) and only
+ * changed attributes are written (idempotent — no redundant mutations). The
+ * first/mid/last/solo group marks drive the panel's rounded corners + dividers.
+ */
+function tagBotDetailFields(): void {
+  document.querySelectorAll<HTMLElement>('.wk-bot-detail-content').forEach((content) => {
+    const descs = content.querySelectorAll<HTMLElement>(':scope > .wk-bot-detail-desc');
+    const infoMembers: HTMLElement[] = [];
+    descs.forEach((desc) => {
+      const label = desc.querySelector('.wk-bot-detail-label');
+      const t = label && label.textContent ? label.textContent.trim() : '';
+      let kind = 'other';
+      if (t.indexOf('创建者') === 0) kind = 'creator';
+      else if (t.indexOf('备注') === 0) kind = 'remark';
+      else if (t.indexOf('简介') === 0) kind = 'intro';
+      if (desc.getAttribute('data-octo-field') !== kind) desc.setAttribute('data-octo-field', kind);
+      if (kind !== 'creator') infoMembers.push(desc);
+    });
+    infoMembers.forEach((d, i) => {
+      const pos =
+        infoMembers.length === 1
+          ? 'solo'
+          : i === 0
+            ? 'first'
+            : i === infoMembers.length - 1
+              ? 'last'
+              : 'mid';
+      if (d.getAttribute('data-octo-group') !== pos) d.setAttribute('data-octo-group', pos);
+    });
+  });
+}
+
+/**
+ * Trading-card feel: the shell tilts toward the pointer in 3D (CSS vars drive
+ * its rotateX/Y) and a holographic glare follows the cursor. The frame, foil,
+ * float, and glare surface are pure CSS; JS only feeds pointer position. Bound
+ * once per shell (WeakSet); skipped under reduced-motion.
+ */
+const botTiltBound = new WeakSet<HTMLElement>();
+function bindBotCardTilt(): void {
+  if (prefersReducedMotion()) return;
+  document
+    .querySelectorAll<HTMLElement>('.wk-bot-detail-modal .wk-modal-shell')
+    .forEach((el) => {
+      if (botTiltBound.has(el)) return;
+      botTiltBound.add(el);
+      el.addEventListener('pointermove', (e) => {
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        const px = (e.clientX - r.left) / r.width - 0.5; // -0.5 ~ 0.5
+        const py = (e.clientY - r.top) / r.height - 0.5;
+        el.style.setProperty('--octo-card-ry', (px * 11).toFixed(2) + 'deg'); // 左右 → rotateY
+        el.style.setProperty('--octo-card-rx', (-py * 11).toFixed(2) + 'deg'); // 上下 → rotateX
+        el.style.setProperty('--octo-card-mx', (px * 100 + 50).toFixed(1) + '%'); // 光标 X% → 跟手高光
+        el.style.setProperty('--octo-card-my', (py * 100 + 50).toFixed(1) + '%');
+      });
+      el.addEventListener('pointerleave', () => {
+        el.style.setProperty('--octo-card-ry', '0deg');
+        el.style.setProperty('--octo-card-rx', '0deg');
+      });
+    });
+}
+
 // ---- worldcup soccer ball: real DOM node + 5 selectable kick styles -------
 
 // Bubbles that carry a corner ball under the worldcup skin.
@@ -3141,7 +3518,9 @@ function sync(): void {
     try { expandAllFoldSessions(); } catch { /* noop */ }
     try { markAIContinueMessages(); } catch { /* noop */ }
     try { applyClamp(); } catch { /* noop */ }
+    try { tagBotDetailFields(); } catch { /* noop */ }
     try { rollBotCardRarity(); } catch { /* noop */ }
+    try { bindBotCardTilt(); } catch { /* noop */ }
     try { syncBalls(); } catch { /* noop */ }
   } finally {
     if (bodyObserver && document.body) {
@@ -3152,6 +3531,36 @@ function sync(): void {
 }
 
 const scheduleSync = debounce(sync, 120);
+
+/**
+ * When a mutation batch inserts bot-card nodes, tag the fields + roll the
+ * rarity SYNCHRONOUSLY (before the next paint) instead of waiting out the
+ * debounce. Otherwise the creator row starts as a full panel and only collapses
+ * into the bottom credit after ~120ms, producing a visible height jump on open.
+ * Everything else still rides the debounced sync.
+ */
+function mutationTouchesBotCard(records: MutationRecord[]): boolean {
+  const SEL = '.wk-bot-detail-content, .wk-bot-detail-desc, .wk-bot-detail-modal';
+  for (const rec of records) {
+    for (const node of rec.addedNodes) {
+      if (node.nodeType !== 1) continue;
+      const el = node as HTMLElement;
+      if (el.matches(SEL) || el.querySelector('.wk-bot-detail-content, .wk-bot-detail-desc')) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function onBodyMutations(records: MutationRecord[]): void {
+  if (mutationTouchesBotCard(records)) {
+    try { tagBotDetailFields(); } catch { /* noop */ }
+    try { rollBotCardRarity(); } catch { /* noop */ }
+  }
+  scheduleSync();
+}
+
 let started = false;
 
 /**
@@ -3173,7 +3582,7 @@ export function initBeautify(initialThemeId: string): void {
     setKickStyle(currentKickStyle); // reflect default kick style onto <body> for bg CSS
     watchThemeAttr();
     bindClicks();
-    bodyObserver = new MutationObserver(scheduleSync);
+    bodyObserver = new MutationObserver(onBodyMutations);
     bodyObserver.observe(document.body, { childList: true, subtree: true });
     sync();
     window.setTimeout(sync, 500);
