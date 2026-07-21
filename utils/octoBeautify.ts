@@ -161,7 +161,8 @@ const BEAUTIFY_CSS = `            :root {
             @media (prefers-reduced-motion: reduce) {
                 .wk-msg-row:has(.ai-badge) .wk-msg-row-sender,
                 .wk-fold-msg-name,
-                .wk-bot-detail-name { animation: none !important; }
+                .wk-bot-detail-name,
+                .wk-bot-detail-name .wk-profile-detail-title-text { animation: none !important; }
             }
 
             /* AI 徽章 - 干净紫色标牌（赛博感交给卡片 HUD 角标，徽章不发光） */
@@ -667,10 +668,14 @@ const BEAUTIFY_CSS = `            :root {
 
             /* ========================================================
              * Bot 详情弹窗 —— 全息卡牌（holographic trading card）
-             * DOM: .wk-bot-detail-content
-             *        > .wk-bot-detail-header (头像 / 名字+AiBadge / @id / [chip])
-             *        > .wk-bot-detail-desc ×N (.wk-bot-detail-label + 值)
-             *        > .wk-bot-detail-commands / 按钮组
+             * octo-web #889/#891/#892 profile 重构后 DOM(新 ProfileDetailShell + BotDetailView)：
+             *   .wk-bot-detail-modal .wk-modal-shell > .wk-modal-body
+             *     > .wk-bot-detail-content (=.wk-profile-detail：route-header + scroll + footer)
+             *         .wk-bot-detail-route-header > .wk-bot-detail-route-close (关闭键，✕ 由 span 画)
+             *         .wk-bot-detail-scroll
+             *           .wk-bot-detail-header > .wk-bot-detail-header-avatar / .wk-bot-detail-name / .wk-bot-detail-id
+             *           .wk-bot-detail-section ×N > .wk-bot-detail-row / -description / -command-block / -nav-row
+             *         .wk-bot-detail-footer > .wk-bot-detail-primary-action(.wk-btn)
              * 设计：有氛围的 mesh banner + 发光头像环 + 堆叠柔色信息卡 + 强调色按钮 + 入场微动效
              * 纯 CSS 覆盖，不动源码。
              * ====================================================== */
@@ -783,7 +788,9 @@ const BEAUTIFY_CSS = `            :root {
                 border: none !important;
                 overflow: visible !important;
             }
-            /* 内容：清顶 padding 给 banner，底部微暖白渐变，入场动效。
+            /* 内容根 = 新 ProfileDetailShell 外壳(.wk-profile-detail：route-header + scroll + footer)。
+             * octo-web #889/#891 重构后 class 名与结构全变，这里把它还原成「整卡画布」：
+             * 撑满卡框、径向暖白底、入场动效，并取消原生 78vh 内滚(卡片按内容自适应，同原版)。
              * flex 列布局 + 主题配色变量(结构共享，各主题只改这些变量的值)。 */
             .wk-bot-detail-content {
                 /* --- 配色变量：默认=赛博紫(亮)，暗色/世界杯各自覆盖 --- */
@@ -795,9 +802,40 @@ const BEAUTIFY_CSS = `            :root {
                 display: flex !important;
                 flex-direction: column !important;
                 position: relative !important;
-                padding: 0 22px 22px !important;
+                max-height: none !important;      /* 取消原生 min(…,78vh) 内滚 */
+                overflow: visible !important;
+                padding: 0 0 22px !important;
                 background: radial-gradient(130% 70% at 50% 0%, #fbfbff 0%, #ffffff 58%) !important;
                 animation: octo-bot-in .3s cubic-bezier(.22,.8,.28,1) both !important;
+            }
+            /* 关闭键条 → 浮层：不占高度，关闭键落到 banner 右上角(见下方 route-close 重着色) */
+            .wk-bot-detail-content .wk-bot-detail-route-header {
+                position: absolute !important;
+                top: 0 !important;
+                right: 0 !important;
+                left: auto !important;
+                width: auto !important;
+                height: auto !important;
+                padding: 9px 11px !important;
+                background: transparent !important;
+                z-index: 6 !important;
+            }
+            /* scroll 容器：取消内滚 + 内边距，让 banner 顶到卡顶、横向不被裁切 */
+            .wk-bot-detail-content .wk-bot-detail-scroll {
+                flex: 0 0 auto !important;
+                overflow: visible !important;
+                min-height: 0 !important;
+                padding: 0 !important;
+            }
+            /* footer(主按钮条) → 透明融入卡片，按钮与 section 左右对齐、上留间距 */
+            .wk-bot-detail-content .wk-bot-detail-footer {
+                min-height: 0 !important;
+                border-top: none !important;
+                background: transparent !important;
+            }
+            .wk-bot-detail-content .wk-bot-detail-footer .wk-profile-detail-footer-action,
+            .wk-bot-detail-content .wk-bot-detail-actions {
+                padding: 16px 22px 0 !important;
             }
             /* 跟手全息高光(glare)：hover 时在光标(--octo-card-mx/my, 由 JS 设)处浮现随动高光 + 微彩,
              * screen 混合只提亮；配合 3D 倾斜 = 全息卡转动反光感。默认隐藏, hover 显现。 */
@@ -1008,13 +1046,18 @@ const BEAUTIFY_CSS = `            :root {
             /* 头部：左对齐，承载 banner */
             .wk-bot-detail-header {
                 --octo-syn: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22400%22%20height%3D%22120%22%20viewBox%3D%220%200%20400%20120%22%20preserveAspectRatio%3D%22xMidYMid%20slice%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sky%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23180f3a%22%2F%3E%3Cstop%20offset%3D%220.62%22%20stop-color%3D%22%233a1f6e%22%2F%3E%3Cstop%20offset%3D%220.99%22%20stop-color%3D%22%237a2f86%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22sun%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235be6ff%22%2F%3E%3Cstop%20offset%3D%220.5%22%20stop-color%3D%22%23b06bff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23ff5ac6%22%2F%3E%3C%2FlinearGradient%3E%3CclipPath%20id%3D%22below%22%3E%3Crect%20x%3D%220%22%20y%3D%2284%22%20width%3D%22400%22%20height%3D%2236%22%2F%3E%3C%2FclipPath%3E%3C%2Fdefs%3E%3Crect%20width%3D%22400%22%20height%3D%22120%22%20fill%3D%22url(%23sky)%22%2F%3E%3Ccircle%20cx%3D%22270%22%20cy%3D%2284%22%20r%3D%2236%22%20fill%3D%22url(%23sun)%22%2F%3E%3Cg%20fill%3D%22%23180f3a%22%20opacity%3D%220.6%22%3E%3Crect%20x%3D%22228%22%20y%3D%2256%22%20width%3D%2284%22%20height%3D%223%22%2F%3E%3Crect%20x%3D%22226%22%20y%3D%2263%22%20width%3D%2288%22%20height%3D%224%22%2F%3E%3Crect%20x%3D%22224%22%20y%3D%2271%22%20width%3D%2292%22%20height%3D%225%22%2F%3E%3Crect%20x%3D%22222%22%20y%3D%2280%22%20width%3D%2296%22%20height%3D%226%22%2F%3E%3C%2Fg%3E%3Crect%20x%3D%220%22%20y%3D%2284%22%20width%3D%22400%22%20height%3D%2236%22%20fill%3D%22%230d0920%22%2F%3E%3Cg%20clip-path%3D%22url(%23below)%22%20stroke%3D%22%235be6ff%22%20stroke-opacity%3D%220.5%22%3E%3Cline%20x1%3D%220%22%20y1%3D%2284%22%20x2%3D%22400%22%20y2%3D%2284%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%2291%22%20x2%3D%22400%22%20y2%3D%2291%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%22102%22%20x2%3D%22400%22%20y2%3D%22102%22%2F%3E%3Cline%20x1%3D%220%22%20y1%3D%22118%22%20x2%3D%22400%22%20y2%3D%22118%22%2F%3E%3C%2Fg%3E%3Cg%20clip-path%3D%22url(%23below)%22%20stroke%3D%22%23b06bff%22%20stroke-opacity%3D%220.5%22%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22-60%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%2270%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22170%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22230%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22270%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22320%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22400%22%20y2%3D%22120%22%2F%3E%3Cline%20x1%3D%22270%22%20y1%3D%2284%22%20x2%3D%22520%22%20y2%3D%22120%22%2F%3E%3C%2Fg%3E%3Crect%20x%3D%220%22%20y%3D%2282.5%22%20width%3D%22400%22%20height%3D%222%22%20fill%3D%22%237df0ff%22%2F%3E%3C%2Fsvg%3E") !important;
-                align-items: flex-start !important;
+                align-items: center !important;
                 display: flex !important;
                 flex-direction: column !important;
+                gap: 0 !important;
                 order: 0 !important;
                 position: relative !important;
-                padding: 0 !important;
+                padding: 0 22px 2px !important;
                 margin: 0 0 6px !important;
+                border: none !important;
+                border-radius: 0 !important;
+                background: transparent !important;
+                box-shadow: none !important;
                 overflow: visible !important;
             }
             /* banner 主体 → synthwave/outrun 落日场景（内联 SVG 存于 --octo-syn；亮/暗共用, 世界杯另覆盖绿茵） */
@@ -1022,8 +1065,8 @@ const BEAUTIFY_CSS = `            :root {
                 content: "" !important;
                 position: absolute !important;
                 top: 0 !important;
-                left: -22px !important;
-                right: -22px !important;
+                left: 0 !important;
+                right: 0 !important;
                 bottom: auto !important;
                 height: 176px !important;
                 background: var(--octo-syn) center bottom / cover no-repeat, #150e34 !important;
@@ -1036,8 +1079,8 @@ const BEAUTIFY_CSS = `            :root {
                 content: "" !important;
                 position: absolute !important;
                 top: 0 !important;
-                left: -22px !important;
-                right: -22px !important;
+                left: 0 !important;
+                right: 0 !important;
                 height: 176px !important;
                 background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 3px) !important;
                 border-radius: 16px 16px 0 0 !important;
@@ -1045,8 +1088,9 @@ const BEAUTIFY_CSS = `            :root {
                 z-index: 0 !important;
             }
 
-            /* 头像：居中大圆头像 + 白环 + 金环(与金卡框呼应) + 浮起投影，浮在 banner 上 */
-            .wk-bot-detail-avatar {
+            /* 头像：把新 DOM 的 56px 包装(.wk-bot-detail-header-avatar)放大成居中大圆头像
+             * + 白环 + 金环(与金卡框呼应) + 浮起投影，浮在 banner 上 */
+            .wk-bot-detail-header .wk-bot-detail-header-avatar {
                 position: relative !important;
                 z-index: 1 !important;
                 align-self: center !important;
@@ -1061,26 +1105,42 @@ const BEAUTIFY_CSS = `            :root {
                     0 0 0 4px rgba(198, 160, 74, 0.95),
                     0 10px 22px rgba(0, 0, 0, 0.42) !important;
             }
-            /* 头像内部不论 img / semi-image / WKAvatar(.wk-avatar)，统一放大并裁圆
-             * (.wk-avatar 原生仅 40px，且 WKAvatar 不消费 size prop → 这里强制撑满父容器) */
-            .wk-bot-detail-avatar > *,
-            .wk-bot-detail-avatar .wk-avatar,
-            .wk-bot-detail-avatar .semi-image,
-            .wk-bot-detail-avatar .semi-image-img,
-            .wk-bot-detail-avatar img {
+            /* 头像内部不论 .wk-bot-detail-avatar / img / semi-image / WKAvatar，统一撑满并裁圆 */
+            .wk-bot-detail-header .wk-bot-detail-avatar,
+            .wk-bot-detail-header .wk-bot-detail-header-avatar > *,
+            .wk-bot-detail-header .wk-bot-detail-avatar > *,
+            .wk-bot-detail-header .wk-bot-detail-avatar .wk-avatar,
+            .wk-bot-detail-header .wk-bot-detail-avatar .semi-image,
+            .wk-bot-detail-header .wk-bot-detail-avatar .semi-image-img,
+            .wk-bot-detail-header .wk-bot-detail-avatar img {
                 width: 100% !important;
                 height: 100% !important;
                 border-radius: 50% !important;
                 object-fit: cover !important;
+                background: transparent !important;
+                box-shadow: none !important;
             }
 
-            /* 名字 / handle：落到 banner 下白底，左对齐 */
+            /* heading(名字/handle/chip 容器)：落到 banner 下、居中 */
+            .wk-bot-detail-header .wk-profile-detail-heading {
+                flex: 0 0 auto !important;
+                align-items: center !important;
+                width: 100% !important;
+                margin-top: 14px !important;
+                padding-top: 0 !important;
+                text-align: center !important;
+            }
+            /* 名字行：居中；名字旁可带 AiBadge */
             .wk-bot-detail-name {
-                align-self: flex-start !important;
-                margin-top: 16px !important;
+                justify-content: center !important;
+                gap: 8px !important;
                 font-size: 21px !important;
                 font-weight: 700 !important;
                 letter-spacing: 0.2px !important;
+            }
+            /* 名字文字流光渐变：新 DOM 里文字落在 .wk-profile-detail-title-text span，
+             * 渐变必须挂在该 span 上(挂父级 flex 会因子节点各自背景而失效) */
+            .wk-bot-detail-name .wk-profile-detail-title-text {
                 background: linear-gradient(90deg,
                     hsl(calc(248deg + var(--octo-hue)), 78%, 63%),
                     hsl(calc(190deg + var(--octo-hue)), 92%, 52%),
@@ -1092,107 +1152,59 @@ const BEAUTIFY_CSS = `            :root {
                 color: transparent !important;
                 animation: octo-name-wave 4s linear infinite !important;
             }
-            /* 名字旁 AiBadge 是 flex 子元素：父级 text-fill 透明会继承下去 → 恢复白字，徽章不被流光染 */
+            /* 名字旁 AiBadge：恢复白字，不被流光染 */
             .wk-bot-detail-name .ai-badge {
                 -webkit-text-fill-color: #fff !important;
                 color: #fff !important;
             }
             .wk-bot-detail-id {
-                align-self: flex-start !important;
                 margin-top: 6px !important;
                 font-size: 13px !important;
                 color: #9a9db0 !important;
+                text-align: center !important;
             }
             /* 状态 chip（🔌 未上报 Agent 信息 + ?）全主题隐藏 */
             .wk-bot-detail-octopush-chip {
                 display: none !important;
             }
 
-            /* 信息字段 → 备注/简介等「非创建者」合成一个大框(连续面板)；命令面板单独一块；
-             * 创建者移到最底部作署名。颜色用主题变量(--octo-bd-panel-*)，结构全主题共享。
-             * 字段由 JS 按标签打 data-octo-field / data-octo-group 标记(见 tagBotDetailFields)。 */
-            .wk-bot-detail-desc,
-            .wk-bot-detail-commands {
+            /* 信息面板：octo-web 新 DOM 用 .wk-bot-detail-section 分组卡承载
+             * row(备注/昵称/创建者) / description(简介) / command-block(指令) / nav-row(管理/龙虾)。
+             * 还原成堆叠柔色 HUD 面板：柔底 + 描边 + 圆角 + 间距，主题色走 --octo-bd-panel-*。 */
+            .wk-bot-detail-section {
+                overflow: visible !important;
+                margin: 8px 22px 0 !important;
+                border: 1px solid var(--octo-bd-panel-line) !important;
+                border-radius: 12px !important;
+                background: var(--octo-bd-panel-bg) !important;
+                box-shadow: none !important;
+            }
+            .wk-bot-detail-section:first-of-type { margin-top: 4px !important; }
+            /* section 内多条目之间的分隔线 → 主题分隔色 */
+            .wk-bot-detail-row + .wk-bot-detail-row,
+            .wk-bot-detail-command-block,
+            .wk-bot-detail-nav-row + .wk-bot-detail-nav-row {
+                border-top: 1px solid var(--octo-bd-panel-div) !important;
+            }
+            .wk-bot-detail-row,
+            .wk-bot-detail-description,
+            .wk-bot-detail-command-block {
                 position: relative !important;
                 padding: 12px 15px !important;
                 font-size: 14px !important;
                 color: #2e2e44 !important;
-                background: var(--octo-bd-panel-bg) !important;
-            }
-            /* 面板不再用霓虹左条(避免大框里多条竖线) */
-            .wk-bot-detail-desc::before,
-            .wk-bot-detail-commands::before { display: none !important; }
-            /* 备注/简介等 → 连续大框 */
-            .wk-bot-detail-desc:not([data-octo-field="creator"]) {
-                order: 1 !important;
-                margin: 0 !important;
-                border-radius: 0 !important;
-                border-left: 1px solid var(--octo-bd-panel-line) !important;
-                border-right: 1px solid var(--octo-bd-panel-line) !important;
-                border-top: none !important;
-                border-bottom: none !important;
-                clip-path: none !important;
-            }
-            .wk-bot-detail-desc[data-octo-group="first"],
-            .wk-bot-detail-desc[data-octo-group="solo"] {
-                border-top: 1px solid var(--octo-bd-panel-line) !important;
-                border-radius: 12px 12px 0 0 !important;
-                margin-top: 4px !important;
-            }
-            .wk-bot-detail-desc[data-octo-group="mid"],
-            .wk-bot-detail-desc[data-octo-group="last"] {
-                border-top: 1px solid var(--octo-bd-panel-div) !important;
-            }
-            .wk-bot-detail-desc[data-octo-group="last"] {
-                border-bottom: 1px solid var(--octo-bd-panel-line) !important;
-                border-radius: 0 0 12px 12px !important;
-            }
-            .wk-bot-detail-desc[data-octo-group="solo"] {
-                border-bottom: 1px solid var(--octo-bd-panel-line) !important;
-                border-radius: 12px !important;
-            }
-            /* 命令面板：单独一块(整框)，排在大框下、按钮上 */
-            .wk-bot-detail-commands {
-                order: 2 !important;
-                margin: 12px 0 0 !important;
-                border: 1px solid var(--octo-bd-panel-line) !important;
-                border-radius: 12px !important;
-                clip-path: none !important;
-            }
-            /* 发送/添加好友按钮排大框(及命令)下方 */
-            .wk-bot-detail-modal .semi-button-block:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
-                order: 3 !important;
-            }
-            /* 创建者 → 最底部作者署名(小字、居中、无框) */
-            .wk-bot-detail-desc[data-octo-field="creator"] {
-                order: 5 !important;
-                margin: 12px 0 2px !important;
-                padding: 0 !important;
-                border: none !important;
                 background: transparent !important;
-                clip-path: none !important;
-                text-align: center !important;
-                font-size: 12px !important;
-                color: var(--octo-bd-credit) !important;
-                display: flex !important;
-                justify-content: center !important;
-                align-items: baseline !important;
-                gap: 6px !important;
             }
-            .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label {
-                background: transparent !important;
-                color: var(--octo-bd-credit-label) !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                font-size: 11px !important;
-                letter-spacing: 0.06em !important;
-                text-transform: none !important;
-                clip-path: none !important;
-            }
-            .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label::before { content: "" !important; }
+            .wk-bot-detail-value,
+            .wk-bot-detail-description-text { color: #2e2e44 !important; }
+            .wk-bot-detail-value--right { color: #6b6f86 !important; }
             /* 标签 → 浅紫 chip + 紫等宽字 + // 前缀（右下斜切，轻量 HUD tag，与 banner 同色系） */
             .wk-bot-detail-label {
                 display: inline-block !important;
+                align-self: flex-start !important;   /* 新 DOM 里 label 常在 flex 列里，防止被拉伸成整条 */
+                width: -moz-fit-content !important;
+                width: fit-content !important;
+                max-width: 100% !important;
                 text-transform: uppercase !important;
                 letter-spacing: 1.2px !important;
                 font-family: 'SF Mono', 'Monaco', 'Consolas', monospace !important;
@@ -1221,34 +1233,41 @@ const BEAUTIFY_CSS = `            :root {
             }
             .wk-bot-detail-cmd-desc { color: #6b6f86 !important; }
 
-            /* 底部主按钮（发送消息/聊天）：品牌紫渐变 + 浮起，接住消息气泡同色系。
-             * 排除 Bot 管理 / 龙虾两个 light 次级按钮——Semi 默认 type=primary，
-             * 否则它们会被套上紫渐变底却保留紫字 → 紫底紫字不可读。 */
-            .wk-bot-detail-modal .semi-button-block.semi-button-primary:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
+            /* 底部主按钮（发送消息/加好友）：新 DOM 是 WKButton(.wk-btn / .wk-bot-detail-primary-action)。
+             * 品牌紫渐变 + 浮起，接住消息气泡同色系。 */
+            .wk-bot-detail-modal .wk-bot-detail-primary-action,
+            .wk-bot-detail-modal .wk-bot-detail-actions .wk-btn {
                 background: linear-gradient(120deg, #6d5cf0, #5b58e8) !important;
                 border: none !important;
                 border-radius: 12px !important;
                 height: 44px !important;
+                color: #fff !important;
                 font-weight: 600 !important;
                 box-shadow: 0 6px 16px rgba(91, 88, 232, 0.35) !important;
                 transition: transform .15s ease, box-shadow .15s ease, filter .15s ease !important;
             }
-            .wk-bot-detail-modal .semi-button-block.semi-button-primary:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn):hover {
+            .wk-bot-detail-modal .wk-bot-detail-primary-action:hover,
+            .wk-bot-detail-modal .wk-bot-detail-actions .wk-btn:hover {
                 transform: translateY(-1px) !important;
                 box-shadow: 0 9px 22px rgba(91, 88, 232, 0.45) !important;
                 filter: brightness(1.05) !important;
             }
 
-            /* 关闭按钮位于深色 synthwave banner 之上 → 浅色，保证可读 */
-            .wk-bot-detail-modal .semi-modal-close,
-            .wk-bot-detail-modal .semi-modal-close .semi-icon,
-            .wk-bot-detail-modal .semi-modal-close svg {
-                color: #dfe3ee !important;
-                fill: #dfe3ee !important;
+            /* 关闭键（新 DOM：.wk-bot-detail-route-close，✕ 由 span 伪元素画）位于深色 banner 上 →
+             * 半透暗底圆钮 + 浅色 ✕，保证可读 */
+            .wk-bot-detail-modal .wk-bot-detail-route-close {
+                background: rgba(10, 8, 26, 0.28) !important;
+                -webkit-backdrop-filter: blur(2px) !important;
+                backdrop-filter: blur(2px) !important;
             }
-            .wk-bot-detail-modal .semi-modal-close:hover {
-                background: rgba(255, 255, 255, 0.14) !important;
-                border-radius: 8px !important;
+            .wk-bot-detail-modal .wk-bot-detail-route-close:hover,
+            .wk-bot-detail-modal .wk-bot-detail-route-close:focus-visible {
+                background: rgba(255, 255, 255, 0.22) !important;
+            }
+            .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
+            .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
+            .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
+                background-color: #eef1f9 !important;
             }
 
             /* 无障碍：减弱动态时关闭 banner 的网格滚动与霓虹脉冲（保留静态 cyber 外观） */
@@ -1778,11 +1797,17 @@ const BEAUTIFY_CSS = `            :root {
                 color: #eef0f6 !important;
             }
 
-            /* ---- 隐藏 Bot 资料卡的「Bot 管理」「🦞 查看龙虾信息」按钮（两个主题都隐藏，非暗色专属）---- */
-            .wk-bot-detail-manage-btn,
-            .wk-bot-detail-claw-btn {
-                display: none !important;
+            /* ---- Bot 管理 / 🦞 查看龙虾 导航行（新 DOM：.wk-bot-detail-nav-row，原按钮类已不存在）
+             * → 贴合面板配色，作为 section 内的可点条目 ---- */
+            .wk-bot-detail-nav-row {
+                color: #2e2e44 !important;
+                background: transparent !important;
             }
+            .wk-bot-detail-nav-row:hover:not(.wk-bot-detail-nav-row--disabled),
+            .wk-bot-detail-nav-row:focus-visible:not(.wk-bot-detail-nav-row--disabled) {
+                background: rgba(124, 107, 240, 0.08) !important;
+            }
+            .wk-bot-detail-nav-chevron { color: #a6a8c4 !important; }
 
             /* ---- AI 消息气泡 ---- */
             body[theme-mode="dark"] .wk-msg-row:has(.ai-badge) .wk-markdown,
@@ -1930,24 +1955,31 @@ const BEAUTIFY_CSS = `            :root {
             body[theme-mode="dark"] .wk-bot-detail-header::before {
                 background: var(--octo-syn) center bottom / cover no-repeat, #0d0920 !important;
             }
-            body[theme-mode="dark"] .wk-bot-detail-desc,
-            body[theme-mode="dark"] .wk-bot-detail-commands {
+            body[theme-mode="dark"] .wk-bot-detail-row,
+            body[theme-mode="dark"] .wk-bot-detail-description,
+            body[theme-mode="dark"] .wk-bot-detail-command-block,
+            body[theme-mode="dark"] .wk-bot-detail-nav-row,
+            body[theme-mode="dark"] .wk-bot-detail-value,
+            body[theme-mode="dark"] .wk-bot-detail-description-text {
                 color: #d4d5e4 !important;
             }
+            body[theme-mode="dark"] .wk-bot-detail-value--right { color: #a4a7ba !important; }
             body[theme-mode="dark"] .wk-bot-detail-label {
                 color: #a99cff !important;
                 background: rgba(124, 107, 240, 0.16) !important;
             }
             body[theme-mode="dark"] .wk-bot-detail-cmd-desc { color: #a4a7ba !important; }
             body[theme-mode="dark"] .wk-bot-detail-empty { color: #8a8da1 !important; }
-            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-close,
-            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-close .semi-icon,
-            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-close svg {
-                color: #c9ccda !important;
-                fill: #c9ccda !important;
+            body[theme-mode="dark"] .wk-bot-detail-nav-chevron { color: #8f92ad !important; }
+            body[theme-mode="dark"] .wk-bot-detail-nav-row:hover:not(.wk-bot-detail-nav-row--disabled),
+            body[theme-mode="dark"] .wk-bot-detail-nav-row:focus-visible:not(.wk-bot-detail-nav-row--disabled) {
+                background: rgba(124, 107, 240, 0.14) !important;
             }
-            body[theme-mode="dark"] .wk-bot-detail-modal .semi-modal-close:hover {
-                background: rgba(255, 255, 255, 0.12) !important;
+            /* 关闭键 ✕(span 伪元素)在暗色 banner 上保持浅色 */
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
+                background-color: #c9ccda !important;
             }
 
             /* ---- 用户资料卡 ---- */
@@ -2372,7 +2404,8 @@ const BEAUTIFY_CSS = `            :root {
             /* ---- AI/Bot 名字：金箔铭牌（字距 + 金属金流光；--octo-hue 每帧变色才会重绘）---- */
             body[data-octo-skin="worldcup"] .wk-msg-row:has(.ai-badge) .wk-msg-row-sender,
             body[data-octo-skin="worldcup"] .wk-fold-msg-name,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-name {
+            body[data-octo-skin="worldcup"] .wk-bot-detail-name,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-name .wk-profile-detail-title-text {
                 letter-spacing: 0.04em !important;
                 background: linear-gradient(95deg,
                     hsl(calc(40deg + var(--octo-hue)), 58%, 38%),
@@ -2388,7 +2421,8 @@ const BEAUTIFY_CSS = `            :root {
             @media (prefers-reduced-motion: reduce) {
                 body[data-octo-skin="worldcup"] .wk-msg-row:has(.ai-badge) .wk-msg-row-sender,
                 body[data-octo-skin="worldcup"] .wk-fold-msg-name,
-                body[data-octo-skin="worldcup"] .wk-bot-detail-name { animation: none !important; }
+                body[data-octo-skin="worldcup"] .wk-bot-detail-name,
+                body[data-octo-skin="worldcup"] .wk-bot-detail-name .wk-profile-detail-title-text { animation: none !important; }
             }
             /* ---- AI 徽章：金箔（带高光内嵌，含折叠名 ::after 徽章、bot 卡徽章）---- */
             body[data-octo-skin="worldcup"] .wk-msg-row:has(.ai-badge) .ai-badge,
@@ -2403,94 +2437,52 @@ const BEAUTIFY_CSS = `            :root {
                 color: #2A2206 !important;
                 -webkit-text-fill-color: #2A2206 !important;
             }
-            /* ---- 世界杯下 Bot 卡「内胆」世界杯化：banner 绿茵球场 + 暖纸金面板 + 金按钮（卡框/流光/3D 仍是基础层）---- */
-            /* 头部 → 方案B「悬浮完整头像」：上部深场球场渐变 banner，头像 contain 居中悬浮(完整不裁)，
-             * 名字/@handle 落到 banner 下白底左对齐；状态 chip 隐藏。 */
+            /* ---- 世界杯下 Bot 卡「内胆」世界杯化：banner 绿茵球场 + 暖纸金面板 + 金按钮
+             * （卡框/流光/3D 仍是基础层；octo-web #889/#891 新 DOM 下 class 名已重映射）---- */
+            /* 头部：绿茵→夜蓝 banner，圆形头像悬浮，名字/@handle 落到 banner 下左对齐 */
             body[data-octo-skin="worldcup"] .wk-bot-detail-header {
-                position: relative !important;
-                display: flex !important;
-                flex-direction: column !important;
                 align-items: flex-start !important;
-                padding: 0 !important;
-                margin: 0 0 6px !important;
-                overflow: visible !important;
             }
-            /* banner：深绿球场 → 夜蓝渐变(全宽出血)，托住悬浮头像，底部金色底线 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-profile-detail-heading {
+                align-items: flex-start !important;
+                text-align: left !important;
+            }
             body[data-octo-skin="worldcup"] .wk-bot-detail-header::before {
-                content: "" !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: -22px !important;
-                right: -22px !important;
-                bottom: auto !important;
-                height: 176px !important;
                 background:
                     radial-gradient(70% 90% at 50% 30%, rgba(255,216,130,0.28), transparent 60%),
                     radial-gradient(130% 100% at 50% 0%, #1d7a54 0%, #0f4374 55%, #0a2a52 100%) !important;
-                border-radius: 16px 16px 0 0 !important;
                 box-shadow: inset 0 -3px 0 0 rgba(198,160,74,0.95) !important;
-                z-index: 0 !important;
                 animation: none !important;
             }
-            /* banner 金色 refractor 镀铬光(screen 提亮) */
             body[data-octo-skin="worldcup"] .wk-bot-detail-header::after {
-                content: "" !important;
-                position: absolute !important;
-                top: 0 !important;
-                left: -22px !important;
-                right: -22px !important;
-                bottom: auto !important;
-                height: 176px !important;
                 background:
                     repeating-linear-gradient(116deg, transparent 0 7px, rgba(255,240,200,0.10) 7px 8px),
                     radial-gradient(120% 80% at 74% 8%, rgba(255,220,130,0.30), transparent 55%) !important;
-                border-radius: 16px 16px 0 0 !important;
                 mix-blend-mode: screen !important;
-                pointer-events: none !important;
-                z-index: 0 !important;
                 animation: none !important;
             }
-            /* 头像 → 居中悬浮、完整展示(contain 零裁切)。固定 150×150 白底金边方框：
-             * 无论头像原始比例如何，方框尺寸恒定 → 各卡头像方块大小一致(正方形填满、非方形框内留白)。 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar {
-                position: relative !important;
-                z-index: 1 !important;
-                align-self: center !important;
-                width: 150px !important;
-                height: 150px !important;
-                margin: 16px 0 0 !important;
-                border-radius: 16px !important;
-                overflow: hidden !important;
-                background: #fff !important;
-                box-shadow:
-                    0 0 0 3px rgba(255,255,255,0.92),
-                    0 0 0 4px rgba(198,160,74,0.95),
-                    0 10px 22px rgba(0,0,0,0.42) !important;
+            /* 圆形头像(cover 填满) + 白金环 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-header-avatar { border-radius: 50% !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar > *,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar .wk-avatar,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar .semi-image,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar .semi-image-img,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-header .wk-bot-detail-avatar img {
+                border-radius: 50% !important;
+                object-fit: cover !important;
             }
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar > *,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .wk-avatar,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image-img,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar img {
-                width: 100% !important;
-                height: 100% !important;
-                border-radius: 14px !important;
-                object-fit: contain !important;
-                object-position: center !important;
-            }
-            /* 名字 → 落到 banner 下白底，左对齐斜体铭牌(金流光继承基础世界杯规则) */
+            /* 名字 → 左对齐斜体铭牌(金流光落在 title-text span，见上) */
             body[data-octo-skin="worldcup"] .wk-bot-detail-name {
-                position: static !important;
-                align-self: flex-start !important;
+                justify-content: flex-start !important;
                 margin: 16px 0 0 !important;
                 font-size: 22px !important;
                 font-weight: 800 !important;
                 font-style: italic !important;
                 letter-spacing: 0.04em !important;
             }
-            /* @handle → 蓝位置条，名字下方 */
+            /* @handle → 蓝位置条 */
             body[data-octo-skin="worldcup"] .wk-bot-detail-id {
-                position: static !important;
                 align-self: flex-start !important;
                 margin: 6px 0 0 !important;
                 padding: 3px 12px !important;
@@ -2499,25 +2491,25 @@ const BEAUTIFY_CSS = `            :root {
                 color: #eaf1ff !important;
                 font-weight: 700 !important;
                 letter-spacing: 0.05em !important;
+                text-align: left !important;
             }
-            /* 状态 chip（🔌 未上报 Agent 信息 + ?）不展示 */
             body[data-octo-skin="worldcup"] .wk-bot-detail-octopush-chip { display: none !important; }
-            /* 信息面板：赛博切角 HUD → 暖纸卡 + 金左条 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-commands {
-                background: #FBF8F0 !important;
-                border: 1px solid #EBE1CC !important;
-                border-radius: 10px !important;
-                clip-path: none !important;
-                color: #1C1B19 !important;
+            /* 信息面板 section → 暖纸卡 + 金描边：改主题变量即可(结构继承基础层) */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-content {
+                --octo-bd-panel-bg: #FBF8F0;
+                --octo-bd-panel-line: #EBE1CC;
+                --octo-bd-panel-div: #EFE7D2;
+                --octo-bd-credit: #8a7a52;
+                --octo-bd-credit-label: #b0a074;
             }
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc::before,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-commands::before {
-                background: linear-gradient(180deg, #C6A04A, #8a6a24) !important;
-                box-shadow: none !important;
-                width: 3px !important;
-            }
-            /* 标签 // HUD → 去前缀 + 金 chip */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-row,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-description,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-command-block,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-nav-row,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-value,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-description-text { color: #1C1B19 !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-value--right { color: #5b5344 !important; }
+            /* 标签 → 去 // 前缀 + 金 chip */
             body[data-octo-skin="worldcup"] .wk-bot-detail-label {
                 color: #8a6a24 !important;
                 background: rgba(198, 160, 74, 0.16) !important;
@@ -2530,103 +2522,23 @@ const BEAUTIFY_CSS = `            :root {
             body[data-octo-skin="worldcup"] .wk-bot-detail-edit-action,
             body[data-octo-skin="worldcup"] .wk-bot-detail-value-edit { color: #0B6E4F !important; }
             body[data-octo-skin="worldcup"] .wk-bot-detail-cmd-desc { color: #5b5344 !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-nav-chevron { color: #b0a074 !important; }
+            body[data-octo-skin="worldcup"] .wk-bot-detail-nav-row:hover:not(.wk-bot-detail-nav-row--disabled),
+            body[data-octo-skin="worldcup"] .wk-bot-detail-nav-row:focus-visible:not(.wk-bot-detail-nav-row--disabled) {
+                background: rgba(198, 160, 74, 0.12) !important;
+            }
             /* 发送键：品牌紫 → 金箔 + 深字 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-button-block.semi-button-primary:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-primary-action,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-actions .wk-btn {
                 background: linear-gradient(120deg, #E8C56B, #C6A04A) !important;
                 color: #1C1B19 !important;
                 box-shadow: 0 6px 16px rgba(160, 120, 20, 0.35) !important;
             }
-            /* 关闭键：深绿 banner 上 → 白色可见 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close .semi-icon,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-modal-close svg {
-                color: #ffffff !important;
-                fill: #ffffff !important;
-            }
-
-            /* ---- 世界杯 Bot 卡改版：圆形头像 + 备注/简介合成大框 + 创建者移到底部作署名 ----
-             * 字段由 JS 按标签文字打 data-octo-field / data-octo-group 标记(见 tagBotDetailFields)，
-             * 排序用 flex order(不搬 DOM，避免干扰 React)。 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-content {
-                display: flex !important;
-                flex-direction: column !important;
-            }
-            body[data-octo-skin="worldcup"] .wk-bot-detail-header { order: 0 !important; }
-            /* 圆形头像遮罩(保持 150 尺寸；白金环随之变圆) */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar { border-radius: 50% !important; }
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar > *,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .wk-avatar,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar .semi-image-img,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-avatar img {
-                border-radius: 50% !important;
-                object-fit: cover !important;    /* 圆形头像用 cover 填满 */
-            }
-            /* 面板霓虹左条去掉(避免大框里出现多条竖线) */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc::before,
-            body[data-octo-skin="worldcup"] .wk-bot-detail-commands::before { display: none !important; }
-            /* 备注/简介等「非创建者」字段 → 合成一个大框(连续面板拼接) */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc:not([data-octo-field="creator"]) {
-                order: 1 !important;
-                margin: 0 !important;
-                border-radius: 0 !important;
-                border-left: 1px solid #EBE1CC !important;
-                border-right: 1px solid #EBE1CC !important;
-                border-top: none !important;
-                border-bottom: none !important;
-                background: #FBF8F0 !important;
-            }
-            /* 大框顶(第一项)：上圆角 + 上边框 + 组上间距 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="first"],
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="solo"] {
-                border-top: 1px solid #EBE1CC !important;
-                border-radius: 12px 12px 0 0 !important;
-                margin-top: 4px !important;
-            }
-            /* 中段/末项：顶部加分隔线 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="mid"],
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="last"] {
-                border-top: 1px solid #EFE7D2 !important;
-            }
-            /* 大框底(末项)：下圆角 + 下边框 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="last"] {
-                border-bottom: 1px solid #EBE1CC !important;
-                border-radius: 0 0 12px 12px !important;
-            }
-            /* 只有一项时(solo)：四边成框 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-group="solo"] {
-                border-bottom: 1px solid #EBE1CC !important;
-                border-radius: 12px !important;
-            }
-            /* 命令面板单独一块，排在大框下、按钮上 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-commands { order: 2 !important; margin-top: 12px !important; }
-            /* 发送/添加好友按钮排大框(及命令)下方 */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .semi-button-block:not(.wk-bot-detail-manage-btn):not(.wk-bot-detail-claw-btn) {
-                order: 3 !important;
-            }
-            /* 创建者 → 最底部作者署名(小字、居中、无框) */
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-field="creator"] {
-                order: 5 !important;
-                margin: 12px 0 2px !important;
-                padding: 0 !important;
-                border: none !important;
-                background: transparent !important;
-                clip-path: none !important;
-                text-align: center !important;
-                font-size: 12px !important;
-                color: #8a7a52 !important;
-                display: flex !important;
-                justify-content: center !important;
-                align-items: baseline !important;
-                gap: 6px !important;
-            }
-            body[data-octo-skin="worldcup"] .wk-bot-detail-desc[data-octo-field="creator"] .wk-bot-detail-label {
-                background: transparent !important;
-                color: #b0a074 !important;
-                padding: 0 !important;
-                margin: 0 !important;
-                font-size: 11px !important;
-                letter-spacing: 0.06em !important;
+            /* 关闭键 ✕(span 伪元素) → 白色可见 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
+                background-color: #ffffff !important;
             }
 
             /* ---- 引用块 → 球门：accent 门框(横梁+门柱) + 淡菱形网；hover 踢球时球门网抖动(进球入网)联动 ---- */
@@ -3264,42 +3176,11 @@ function rollBotCardRarity(): void {
     });
 }
 
-// ---- bot profile card: tag fields + 3D pointer tilt ------------------------
-
-/**
- * Tag each field row by its label text so CSS can lay the card out stably:
- * 备注/简介/… collapse into one continuous framed panel, 创建者 moves to a
- * bottom credit line. Recognized by label text (order-independent) and only
- * changed attributes are written (idempotent — no redundant mutations). The
- * first/mid/last/solo group marks drive the panel's rounded corners + dividers.
- */
-function tagBotDetailFields(): void {
-  document.querySelectorAll<HTMLElement>('.wk-bot-detail-content').forEach((content) => {
-    const descs = content.querySelectorAll<HTMLElement>(':scope > .wk-bot-detail-desc');
-    const infoMembers: HTMLElement[] = [];
-    descs.forEach((desc) => {
-      const label = desc.querySelector('.wk-bot-detail-label');
-      const t = label && label.textContent ? label.textContent.trim() : '';
-      let kind = 'other';
-      if (t.indexOf('创建者') === 0) kind = 'creator';
-      else if (t.indexOf('备注') === 0) kind = 'remark';
-      else if (t.indexOf('简介') === 0) kind = 'intro';
-      if (desc.getAttribute('data-octo-field') !== kind) desc.setAttribute('data-octo-field', kind);
-      if (kind !== 'creator') infoMembers.push(desc);
-    });
-    infoMembers.forEach((d, i) => {
-      const pos =
-        infoMembers.length === 1
-          ? 'solo'
-          : i === 0
-            ? 'first'
-            : i === infoMembers.length - 1
-              ? 'last'
-              : 'mid';
-      if (d.getAttribute('data-octo-group') !== pos) d.setAttribute('data-octo-group', pos);
-    });
-  });
-}
+// ---- bot profile card: 3D pointer tilt -------------------------------------
+//
+// 字段分组曾靠 tagBotDetailFields() 给 .wk-bot-detail-desc 打 data-octo-*，但
+// octo-web #889/#891 profile 重构后已原生用 .wk-bot-detail-section 分组，CSS 直接
+// 贴合新结构，无需再打标记 —— 该函数已随之移除。
 
 /**
  * Trading-card feel: the shell tilts toward the pointer in 3D (CSS vars drive
@@ -3518,7 +3399,6 @@ function sync(): void {
     try { expandAllFoldSessions(); } catch { /* noop */ }
     try { markAIContinueMessages(); } catch { /* noop */ }
     try { applyClamp(); } catch { /* noop */ }
-    try { tagBotDetailFields(); } catch { /* noop */ }
     try { rollBotCardRarity(); } catch { /* noop */ }
     try { bindBotCardTilt(); } catch { /* noop */ }
     try { syncBalls(); } catch { /* noop */ }
@@ -3533,19 +3413,18 @@ function sync(): void {
 const scheduleSync = debounce(sync, 120);
 
 /**
- * When a mutation batch inserts bot-card nodes, tag the fields + roll the
- * rarity SYNCHRONOUSLY (before the next paint) instead of waiting out the
- * debounce. Otherwise the creator row starts as a full panel and only collapses
- * into the bottom credit after ~120ms, producing a visible height jump on open.
- * Everything else still rides the debounced sync.
+ * When a mutation batch inserts bot-card nodes, roll the rarity SYNCHRONOUSLY
+ * (before the next paint) instead of waiting out the debounce. Otherwise the
+ * card would mount without its foil frame / corner badge for ~120ms and then
+ * pop in. Everything else still rides the debounced sync.
  */
 function mutationTouchesBotCard(records: MutationRecord[]): boolean {
-  const SEL = '.wk-bot-detail-content, .wk-bot-detail-desc, .wk-bot-detail-modal';
+  const SEL = '.wk-bot-detail-content, .wk-bot-detail-section, .wk-bot-detail-modal';
   for (const rec of records) {
     for (const node of rec.addedNodes) {
       if (node.nodeType !== 1) continue;
       const el = node as HTMLElement;
-      if (el.matches(SEL) || el.querySelector('.wk-bot-detail-content, .wk-bot-detail-desc')) {
+      if (el.matches(SEL) || el.querySelector('.wk-bot-detail-content, .wk-bot-detail-section')) {
         return true;
       }
     }
@@ -3555,7 +3434,6 @@ function mutationTouchesBotCard(records: MutationRecord[]): boolean {
 
 function onBodyMutations(records: MutationRecord[]): void {
   if (mutationTouchesBotCard(records)) {
-    try { tagBotDetailFields(); } catch { /* noop */ }
     try { rollBotCardRarity(); } catch { /* noop */ }
   }
   scheduleSync();
