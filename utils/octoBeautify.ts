@@ -808,7 +808,10 @@ const BEAUTIFY_CSS = `            :root {
                 background: radial-gradient(130% 70% at 50% 0%, #fbfbff 0%, #ffffff 58%) !important;
                 animation: octo-bot-in .3s cubic-bezier(.22,.8,.28,1) both !important;
             }
-            /* 关闭键条 → 浮层：不占高度，关闭键落到 banner 右上角(见下方 route-close 重着色) */
+            /* 关闭键条 → 浮层：不占高度，关闭键落到 banner 右上角(见下方 route-close 重着色)。
+             * ProfileDetailShell 里该条 class 硬编码为 .wk-profile-detail-route-header(不带 bot 前缀)，
+             * 两种命名都兜住。 */
+            .wk-bot-detail-content .wk-profile-detail-route-header,
             .wk-bot-detail-content .wk-bot-detail-route-header {
                 position: absolute !important;
                 top: 0 !important;
@@ -1253,17 +1256,23 @@ const BEAUTIFY_CSS = `            :root {
                 filter: brightness(1.05) !important;
             }
 
-            /* 关闭键（新 DOM：.wk-bot-detail-route-close，✕ 由 span 伪元素画）位于深色 banner 上 →
-             * 半透暗底圆钮 + 浅色 ✕，保证可读 */
+            /* 关闭键（ProfileDetailShell 硬编码为 .wk-profile-detail-route-close，✕ 由 span 伪元素画）
+             * 位于深色 banner 上 → 半透暗底圆钮 + 浅色 ✕，保证可读。两种命名都兜住。 */
+            .wk-bot-detail-modal .wk-profile-detail-route-close,
             .wk-bot-detail-modal .wk-bot-detail-route-close {
                 background: rgba(10, 8, 26, 0.28) !important;
                 -webkit-backdrop-filter: blur(2px) !important;
                 backdrop-filter: blur(2px) !important;
             }
+            .wk-bot-detail-modal .wk-profile-detail-route-close:hover,
+            .wk-bot-detail-modal .wk-profile-detail-route-close:focus-visible,
             .wk-bot-detail-modal .wk-bot-detail-route-close:hover,
             .wk-bot-detail-modal .wk-bot-detail-route-close:focus-visible {
                 background: rgba(255, 255, 255, 0.22) !important;
             }
+            .wk-bot-detail-modal .wk-profile-detail-route-close-icon,
+            .wk-bot-detail-modal .wk-profile-detail-route-close-icon::before,
+            .wk-bot-detail-modal .wk-profile-detail-route-close-icon::after,
             .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
             .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
             .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
@@ -1797,17 +1806,12 @@ const BEAUTIFY_CSS = `            :root {
                 color: #eef0f6 !important;
             }
 
-            /* ---- Bot 管理 / 🦞 查看龙虾 导航行（新 DOM：.wk-bot-detail-nav-row，原按钮类已不存在）
-             * → 贴合面板配色，作为 section 内的可点条目 ---- */
-            .wk-bot-detail-nav-row {
-                color: #2e2e44 !important;
-                background: transparent !important;
-            }
-            .wk-bot-detail-nav-row:hover:not(.wk-bot-detail-nav-row--disabled),
-            .wk-bot-detail-nav-row:focus-visible:not(.wk-bot-detail-nav-row--disabled) {
-                background: rgba(124, 107, 240, 0.08) !important;
-            }
-            .wk-bot-detail-nav-chevron { color: #a6a8c4 !important; }
+            /* ---- Bot 管理 / 🦞 查看龙虾 导航行（新 DOM：.wk-bot-detail-nav-row）→ 隐藏 ----
+             * 还原原设计：原来就屏蔽 .wk-bot-detail-manage-btn / .wk-bot-detail-claw-btn 两个按钮。
+             * 新 DOM 里这两项是 nav-row，且整段单独占一个 section → 连同空 section 一并隐藏，
+             * 避免留下一个只有描边的空框。 */
+            .wk-bot-detail-nav-row { display: none !important; }
+            .wk-bot-detail-section:has(> .wk-bot-detail-nav-row) { display: none !important; }
 
             /* ---- AI 消息气泡 ---- */
             body[theme-mode="dark"] .wk-msg-row:has(.ai-badge) .wk-markdown,
@@ -1976,6 +1980,9 @@ const BEAUTIFY_CSS = `            :root {
                 background: rgba(124, 107, 240, 0.14) !important;
             }
             /* 关闭键 ✕(span 伪元素)在暗色 banner 上保持浅色 */
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon,
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon::before,
+            body[theme-mode="dark"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon::after,
             body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
             body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
             body[theme-mode="dark"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
@@ -2535,6 +2542,9 @@ const BEAUTIFY_CSS = `            :root {
                 box-shadow: 0 6px 16px rgba(160, 120, 20, 0.35) !important;
             }
             /* 关闭键 ✕(span 伪元素) → 白色可见 */
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon::before,
+            body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-profile-detail-route-close-icon::after,
             body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon,
             body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::before,
             body[data-octo-skin="worldcup"] .wk-bot-detail-modal .wk-bot-detail-route-close-icon::after {
