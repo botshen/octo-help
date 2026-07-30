@@ -18,10 +18,13 @@ import {
 const ROOT_ID = 'octo-desktop-pet';
 const STYLE_ID = 'octo-desktop-pet-style';
 const SPRITE_CLASS = 'octo-desktop-pet-sprite';
+const SPEECH_CLASS = 'octo-desktop-pet-speech';
 const VIEWPORT_PADDING = 8;
 const MAX_RENDERED_FRAME_SIZE = 180;
+const SPEECH_DURATION_MS = 5_000;
 
 let animationTimer: number | undefined;
+let speechTimer: number | undefined;
 let loadGeneration = 0;
 let lastPet: StoredDesktopPet | null = null;
 let lastPosition: DesktopPetPosition | null = null;
@@ -74,6 +77,45 @@ function ensureStyle(): void {
       pointer-events: none;
       background-repeat: no-repeat;
       background-position: 0 0;
+    }
+    #${ROOT_ID} .${SPEECH_CLASS} {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 10px);
+      box-sizing: border-box;
+      width: max-content;
+      max-width: min(260px, calc(100vw - 24px));
+      padding: 9px 12px;
+      border: 1px solid rgba(24, 31, 45, 0.12);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 24px rgba(20, 24, 35, 0.18);
+      color: #30343b;
+      font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      overflow-wrap: anywhere;
+      white-space: normal;
+      pointer-events: none;
+      animation: octo-pet-speech-in 160ms ease-out;
+    }
+    #${ROOT_ID}[data-speech-align='left'] .${SPEECH_CLASS} {
+      right: auto;
+      left: 0;
+    }
+    #${ROOT_ID}[data-speech-placement='below'] .${SPEECH_CLASS} {
+      top: calc(100% + 10px);
+      bottom: auto;
+    }
+    body[theme-mode='dark'] #${ROOT_ID} .${SPEECH_CLASS} {
+      border-color: rgba(255, 255, 255, 0.16);
+      background: rgba(37, 41, 50, 0.96);
+      color: #f3f4f6;
+    }
+    @keyframes octo-pet-speech-in {
+      from { opacity: 0; transform: translateY(4px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #${ROOT_ID} .${SPEECH_CLASS} { animation: none; }
     }
   `;
   (document.head || document.documentElement).appendChild(style);
@@ -129,6 +171,10 @@ function syncInteractionAnimation(): void {
 function removePet(): void {
   loadGeneration += 1;
   stopAnimation();
+  if (speechTimer != null) {
+    window.clearTimeout(speechTimer);
+    speechTimer = undefined;
+  }
   document.getElementById(ROOT_ID)?.remove();
   lastPet = null;
   lastPosition = null;
@@ -136,6 +182,39 @@ function removePet(): void {
   interactionState = 'idle';
   pointerHovering = false;
   dragDirection = 0;
+}
+
+export function showDesktopPetSpeech(text: string): boolean {
+  const root = document.getElementById(ROOT_ID);
+  if (!root || !lastPet || !text.trim()) return false;
+  let speech = root.querySelector<HTMLElement>(`.${SPEECH_CLASS}`);
+  if (!speech) {
+    speech = document.createElement('span');
+    speech.className = SPEECH_CLASS;
+    speech.setAttribute('role', 'status');
+    speech.setAttribute('aria-live', 'polite');
+    root.appendChild(speech);
+  }
+  speech.textContent = text.trim();
+  delete root.dataset.speechAlign;
+  delete root.dataset.speechPlacement;
+
+  const rootRect = root.getBoundingClientRect();
+  const speechRect = speech.getBoundingClientRect();
+  if (rootRect.right - speechRect.width < VIEWPORT_PADDING) {
+    root.dataset.speechAlign = 'left';
+  }
+  if (rootRect.top - speechRect.height - 10 < VIEWPORT_PADDING) {
+    root.dataset.speechPlacement = 'below';
+  }
+  if (speechTimer != null) window.clearTimeout(speechTimer);
+  speechTimer = window.setTimeout(() => {
+    speech?.remove();
+    speechTimer = undefined;
+    delete root.dataset.speechAlign;
+    delete root.dataset.speechPlacement;
+  }, SPEECH_DURATION_MS);
+  return true;
 }
 
 function clampPosition(
@@ -364,9 +443,11 @@ export function applyDesktopPetState(message: DesktopPetMessage): void {
   if (root && message.position) setPosition(root, message.position);
 }
 
-window.addEventListener('resize', () => {
-  const root = document.getElementById(ROOT_ID);
-  if (!root) return;
-  const rect = root.getBoundingClientRect();
-  setPosition(root, lastPosition ?? { x: rect.left, y: rect.top });
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    const root = document.getElementById(ROOT_ID);
+    if (!root) return;
+    const rect = root.getBoundingClientRect();
+    setPosition(root, lastPosition ?? { x: rect.left, y: rect.top });
+  });
+}

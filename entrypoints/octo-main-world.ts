@@ -13,6 +13,8 @@ import {
   setTheme,
 } from '@/utils/octoBeautify';
 import { applyDesktopPetState } from '@/utils/octoPetRenderer';
+import { getMessageWrapFromItem } from '@/utils/octoMessageFiber';
+import { startOctoPetSpeech } from '@/utils/octoPetSpeech';
 
 /**
  * MAIN-world script.
@@ -35,6 +37,7 @@ export default defineUnlistedScript(() => {
   // Beautify + theme engine boots immediately (theme id arrives via message,
   // default until then). Independent of the recall toggle below.
   initBeautify(DEFAULT_THEME);
+  startOctoPetSpeech();
 
   // Revoked rows render as a system message. We do NOT gate on the tip text —
   // octo has several revoke phrasings (你撤回…/XX撤回…/撤回了成员…的一条消息/EN),
@@ -52,55 +55,11 @@ export default defineUnlistedScript(() => {
   const SYSCLASS_ATTR = 'octoRecallSysclass'; // marks that we removed the system class
   const STYLE_ID = 'octo-recall-style';
   const IMG_BOX_CLASS = 'octo-recall-img-box'; // wrapper around recalled image
-  const MAX_FIBER_DEPTH = 12;
-  const MAX_FIBER_NODES = 800;
   const SCAN_DEBOUNCE_MS = 150;
 
   let enabled = false;
   let observer: MutationObserver | null = null;
   let scanTimer: number | undefined;
-
-  // ---- fiber reflection ---------------------------------------------------
-
-  function findFiberKey(el: Element): string | undefined {
-    return Object.keys(el).find((k) => k.startsWith('__reactFiber$'));
-  }
-
-  /**
-   * From a `.wk-message-item` DOM node, descend the fiber tree to the first
-   * child fiber whose `memoizedProps.message` is an object (the MessageCell /
-   * RevokeCell). Returns that MessageWrap, or null.
-   */
-  function getMessageWrapFromItem(item: Element): any | null {
-    const key = findFiberKey(item);
-    if (!key) return null;
-    const rootFiber = (item as any)[key];
-    if (!rootFiber) return null;
-
-    const stack: Array<{ fiber: any; depth: number }> = [
-      { fiber: rootFiber.child, depth: 1 },
-    ];
-    let guard = 0;
-    while (stack.length && guard < MAX_FIBER_NODES) {
-      guard++;
-      const node = stack.pop();
-      if (!node || !node.fiber || node.depth > MAX_FIBER_DEPTH) continue;
-      const { fiber, depth } = node;
-      const props = fiber.memoizedProps;
-      if (
-        props &&
-        typeof props === 'object' &&
-        'message' in props &&
-        props.message &&
-        typeof props.message === 'object'
-      ) {
-        return props.message;
-      }
-      if (fiber.child) stack.push({ fiber: fiber.child, depth: depth + 1 });
-      if (fiber.sibling) stack.push({ fiber: fiber.sibling, depth });
-    }
-    return null;
-  }
 
   type RecalledContent =
     | { kind: 'text'; text: string }

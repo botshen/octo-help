@@ -7,6 +7,7 @@
 - **Bot 资料卡「全息卡牌」+ 开卡抽卡** —— 把 Bot 资料卡改成 synthwave 落日 banner + 悬浮圆头像 + 信息合并大框 + 创建者置底署名，随鼠标 3D 倾斜；每次打开还会随机抽一个稀有度（宝可梦式档位 N/R/SR/SSR/UR，越稀越少），据此渲染金箔全息卡框、稀有度角标与高档辉光脉动，SR 及以上播放全屏揭晓特效。
 - **全站主题 + 世界杯特效** —— 可切换导航、会话和输入区配色，提供足球射门动画与梅西、姆巴佩水印。
 - **本地桌面宠物** —— 导入 `.zip` / `.codex-pet.zip` 宠物包，在 Octo 页面按静止、悬浮、左右拖动切换 spritesheet 动作，并记忆位置。
+- **新消息气泡** —— 桌宠启用时，当前页面收到他人的新消息会显示 5 秒短气泡；内容只在本地内存中处理，不持久化。
 
 所有功能都在浏览器本地处理，不改动 Octo 源码，也不会上传宠物包。
 
@@ -27,6 +28,7 @@
 - `utils/octoRecall.ts` — 共享常量（storage key、postMessage 协议）。
 - `utils/octoPet.ts` — 宠物包大小、路径、manifest 与图片校验及本地解析。
 - `utils/octoPetRenderer.ts` — 桌面宠物 overlay、spritesheet 动画与拖拽交互。
+- `utils/octoPetSpeech.ts` — 监听当前会话新增消息、提取短摘要、过滤自己/系统/撤回/重复消息。
 - `entrypoints/popup/` — 弹窗设置：主题选择 + 「显示已撤回的消息」开关（存 `browser.storage.local`，撤回开关默认关闭）。
 
 ## 开发
