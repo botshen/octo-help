@@ -297,7 +297,7 @@ function App() {
             </div>
           </div>
         ) : (
-          <p className="pet-empty">导入宠物包后，会在 Octo 页面右下角显示可拖拽的帧动画宠物。</p>
+          <p className="pet-empty">导入宠物包后，会在 Octo 页面右下角显示可悬浮互动、拖拽的多动作宠物。</p>
         )}
         <div className="pet-import-row">
           <input

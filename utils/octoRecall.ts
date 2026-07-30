@@ -27,11 +27,37 @@ export const DESKTOP_PET_STORAGE_KEY = 'octoDesktopPet';
 export const DESKTOP_PET_ENABLED_STORAGE_KEY = 'octoDesktopPetEnabled';
 export const DESKTOP_PET_POSITION_STORAGE_KEY = 'octoDesktopPetPosition';
 
+export interface DesktopPetAnimationManifest {
+  row: number;
+  /** A frame count starting at column 0, or an explicit list of column indexes. */
+  frames: number | number[];
+  fps?: number;
+  frameDurationMs?: number;
+  /** Optional per-frame timings for Codex-compatible and other variable-speed loops. */
+  frameDurationsMs?: number[];
+  loop?: boolean;
+}
+
+export interface DesktopPetStateAnimations {
+  idle?: string;
+  hover?: string;
+  drag?: string;
+  dragLeft?: string;
+  dragRight?: string;
+}
+
 export interface DesktopPetManifest {
   id: string;
   displayName: string;
   description?: string;
   spritesheetPath: string;
+  /** Codex v1/v2 atlas contract. Omitted Codex v1 packages are detected by dimensions. */
+  spriteVersionNumber?: 1 | 2;
+  columns?: number;
+  rows?: number;
+  frameDurationMs?: number;
+  animations?: Record<string, DesktopPetAnimationManifest>;
+  stateAnimations?: DesktopPetStateAnimations;
 }
 
 export interface StoredDesktopPet {

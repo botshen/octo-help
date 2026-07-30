@@ -1,16 +1,17 @@
 import JSZip, { type JSZipObject } from 'jszip';
 import type {
-  DesktopPetManifest,
   StoredDesktopPet,
 } from './octoRecall';
+import {
+  parseDesktopPetManifest,
+  validateDesktopPetSpritesheetDimensions,
+} from './octoPetManifest';
 
 export const MAX_PET_PACKAGE_BYTES = 10 * 1024 * 1024;
 export const MAX_PET_IMAGE_BYTES = 8 * 1024 * 1024;
 const MAX_TOTAL_UNCOMPRESSED_BYTES = 16 * 1024 * 1024;
 const MAX_MANIFEST_BYTES = 64 * 1024;
 const MAX_ARCHIVE_ENTRIES = 64;
-const DEFAULT_MIN_SPRITESHEET_WIDTH = 12;
-const DEFAULT_MIN_SPRITESHEET_HEIGHT = 13;
 
 const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
   '.webp': 'image/webp',
@@ -43,38 +44,6 @@ function safeArchivePath(rawPath: string): string {
 function getUncompressedSize(entry: JSZipObject): number | null {
   const size = (entry as SizedZipObject)._data?.uncompressedSize;
   return typeof size === 'number' && Number.isFinite(size) ? size : null;
-}
-
-function requireShortString(
-  value: unknown,
-  field: string,
-  maxLength: number,
-): string {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw new Error(`pet.json 缺少有效的 ${field}`);
-  }
-  const normalized = value.trim();
-  if (normalized.length > maxLength) {
-    throw new Error(`pet.json 的 ${field} 过长`);
-  }
-  return normalized;
-}
-
-function parseManifest(value: unknown): DesktopPetManifest {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('pet.json 必须是 JSON 对象');
-  }
-  const raw = value as Record<string, unknown>;
-  const description =
-    raw.description == null ? undefined : requireShortString(raw.description, 'description', 1000);
-  return {
-    id: requireShortString(raw.id, 'id', 100),
-    displayName: requireShortString(raw.displayName, 'displayName', 100),
-    ...(description ? { description } : {}),
-    spritesheetPath: safeArchivePath(
-      requireShortString(raw.spritesheetPath, 'spritesheetPath', 512),
-    ),
-  };
 }
 
 function bytesToDataUrl(bytes: Uint8Array, mimeType: string): string {
@@ -136,7 +105,7 @@ export async function parsePetPackage(file: Blob): Promise<StoredDesktopPet> {
     throw new Error('pet.json 不是有效的 JSON');
   }
 
-  const manifest = parseManifest(manifestValue);
+  const manifest = parseDesktopPetManifest(manifestValue);
   const imageEntry = zip.file(manifest.spritesheetPath);
   if (!imageEntry || imageEntry.dir) {
     throw new Error(`找不到 spritesheet 图片：${manifest.spritesheetPath}`);
@@ -161,16 +130,15 @@ export async function parsePetPackage(file: Blob): Promise<StoredDesktopPet> {
       const imageBuffer = new ArrayBuffer(imageBytes.byteLength);
       new Uint8Array(imageBuffer).set(imageBytes);
       const bitmap = await createImageBitmap(new Blob([imageBuffer], { type: mimeType }));
-      if (
-        bitmap.width < DEFAULT_MIN_SPRITESHEET_WIDTH ||
-        bitmap.height < DEFAULT_MIN_SPRITESHEET_HEIGHT
-      ) {
+      try {
+        validateDesktopPetSpritesheetDimensions(manifest, bitmap.width, bitmap.height);
+      } finally {
         bitmap.close();
-        throw new Error('invalid dimensions');
       }
-      bitmap.close();
-    } catch {
-      throw new Error('spritesheet 图片已损坏或无法解码');
+    } catch (error) {
+      if (error instanceof Error && error.message.startsWith('spritesheet')) throw error;
+      if (error instanceof Error && error.message.startsWith('Codex')) throw error;
+      throw new Error('spritesheet 图片已损坏、尺寸不符或无法解码');
     }
   }
 

@@ -27,6 +27,32 @@ describe('parsePetPackage', () => {
     expect(result.spritesheetDataUrl).toMatch(/^data:image\/webp;base64,/);
   });
 
+  it('normalizes actions and interaction-state mappings from a new manifest', async () => {
+    const result = await parsePetPackage(
+      await packageBlob({
+        id: 'configurable',
+        displayName: 'Configurable',
+        spritesheetPath: 'spritesheet.webp',
+        columns: 4,
+        rows: 3,
+        frameDurationMs: 160,
+        actions: {
+          calm: { row: 0, frames: 4 },
+          happy: { row: 1, frames: [0, 1, 2], fps: 10 },
+          grabbed: { row: 2, frames: 2, frameDurationMs: 90, loop: false },
+        },
+        stateAnimations: { idle: 'calm', hover: 'happy', drag: 'grabbed' },
+      }),
+    );
+
+    expect(result.manifest.animations?.happy).toEqual({
+      row: 1,
+      frames: [0, 1, 2],
+      fps: 10,
+    });
+    expect(result.manifest.stateAnimations?.drag).toBe('grabbed');
+  });
+
   it('rejects traversal paths even when JSZip sanitizes the entry name', async () => {
     const zip = new JSZip();
     zip.file('pet.json', JSON.stringify({
@@ -51,6 +77,21 @@ describe('parsePetPackage', () => {
     await expect(parsePetPackage(await zip.generateAsync({ type: 'blob' }))).rejects.toThrow(
       '找不到 spritesheet',
     );
+  });
+
+  it('rejects an invalid action before it reaches the page renderer', async () => {
+    await expect(parsePetPackage(
+      await packageBlob({
+        id: 'bad-action',
+        displayName: 'Bad Action',
+        spritesheetPath: 'spritesheet.webp',
+        columns: 4,
+        rows: 2,
+        animations: {
+          idle: { row: 2, frames: 4 },
+        },
+      }),
+    )).rejects.toThrow('animations.idle.row');
   });
 
   it('rejects packages over the compressed size limit before parsing', async () => {

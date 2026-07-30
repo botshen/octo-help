@@ -6,14 +6,18 @@ import {
   type DesktopPetPositionMessage,
   type StoredDesktopPet,
 } from './octoRecall';
+import {
+  parseDesktopPetManifest,
+  resolveDesktopPetAnimations,
+  selectDesktopPetAnimation,
+  type DesktopPetInteractionState,
+  type ResolvedDesktopPetAnimation,
+  type ResolvedDesktopPetAnimations,
+} from './octoPetManifest';
 
 const ROOT_ID = 'octo-desktop-pet';
 const STYLE_ID = 'octo-desktop-pet-style';
 const SPRITE_CLASS = 'octo-desktop-pet-sprite';
-const DEFAULT_COLUMNS = 12;
-const DEFAULT_ROWS = 13;
-const DEFAULT_FRAME_COUNT = 12;
-const FRAME_DURATION_MS = 1000 / 8;
 const VIEWPORT_PADDING = 8;
 const MAX_RENDERED_FRAME_SIZE = 180;
 
@@ -21,6 +25,20 @@ let animationTimer: number | undefined;
 let loadGeneration = 0;
 let lastPet: StoredDesktopPet | null = null;
 let lastPosition: DesktopPetPosition | null = null;
+let interactionState: DesktopPetInteractionState = 'idle';
+let pointerHovering = false;
+let dragDirection: -1 | 0 | 1 = 0;
+
+interface AnimationRuntime {
+  config: ResolvedDesktopPetAnimations;
+  sprite: HTMLElement;
+  renderedWidth: number;
+  renderedHeight: number;
+  currentAnimationName: string | null;
+  reducedMotion: boolean;
+}
+
+let animationRuntime: AnimationRuntime | null = null;
 
 function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
@@ -63,9 +81,49 @@ function ensureStyle(): void {
 
 function stopAnimation(): void {
   if (animationTimer != null) {
-    window.clearInterval(animationTimer);
+    window.clearTimeout(animationTimer);
     animationTimer = undefined;
   }
+}
+
+function renderAnimationFrame(
+  runtime: AnimationRuntime,
+  animation: ResolvedDesktopPetAnimation,
+  frameIndex: number,
+): void {
+  const column = animation.frames[frameIndex];
+  runtime.sprite.style.backgroundPosition =
+    `${-column * runtime.renderedWidth}px ${-animation.row * runtime.renderedHeight}px`;
+}
+
+function playAnimation(name: string): void {
+  const runtime = animationRuntime;
+  if (!runtime || runtime.currentAnimationName === name) return;
+  const animation = runtime.config.animations[name];
+  if (!animation) return;
+  stopAnimation();
+  runtime.currentAnimationName = name;
+  let frameIndex = 0;
+  renderAnimationFrame(runtime, animation, frameIndex);
+
+  if (runtime.reducedMotion || animation.frames.length < 2) return;
+  const scheduleNextFrame = () => {
+    animationTimer = window.setTimeout(() => {
+      if (animationRuntime !== runtime || runtime.currentAnimationName !== name) return;
+      if (frameIndex === animation.frames.length - 1 && !animation.loop) return;
+      frameIndex = (frameIndex + 1) % animation.frames.length;
+      renderAnimationFrame(runtime, animation, frameIndex);
+      scheduleNextFrame();
+    }, animation.frameDurationsMs[frameIndex]);
+  };
+  scheduleNextFrame();
+}
+
+function syncInteractionAnimation(): void {
+  if (!animationRuntime) return;
+  playAnimation(
+    selectDesktopPetAnimation(animationRuntime.config, interactionState, dragDirection),
+  );
 }
 
 function removePet(): void {
@@ -74,6 +132,10 @@ function removePet(): void {
   document.getElementById(ROOT_ID)?.remove();
   lastPet = null;
   lastPosition = null;
+  animationRuntime = null;
+  interactionState = 'idle';
+  pointerHovering = false;
+  dragDirection = 0;
 }
 
 function clampPosition(
@@ -116,8 +178,31 @@ function sendPosition(position: DesktopPetPosition): void {
 
 function enableDragging(root: HTMLElement): void {
   let drag:
-    | { pointerId: number; startClientX: number; startClientY: number; startX: number; startY: number }
+    | {
+        pointerId: number;
+        startClientX: number;
+        startClientY: number;
+        lastClientX: number;
+        startX: number;
+        startY: number;
+      }
     | undefined;
+
+  root.addEventListener('pointerenter', () => {
+    pointerHovering = true;
+    if (!drag) {
+      interactionState = 'hover';
+      syncInteractionAnimation();
+    }
+  });
+
+  root.addEventListener('pointerleave', () => {
+    pointerHovering = false;
+    if (!drag) {
+      interactionState = 'idle';
+      syncInteractionAnimation();
+    }
+  });
 
   root.addEventListener('pointerdown', (event) => {
     if (!event.isPrimary || event.button !== 0) return;
@@ -127,17 +212,29 @@ function enableDragging(root: HTMLElement): void {
       pointerId: event.pointerId,
       startClientX: event.clientX,
       startClientY: event.clientY,
+      lastClientX: event.clientX,
       startX: rect.left,
       startY: rect.top,
     };
     root.dataset.dragging = 'true';
     root.setPointerCapture(event.pointerId);
+    interactionState = 'drag';
+    dragDirection = 0;
+    syncInteractionAnimation();
   });
 
   root.addEventListener('pointermove', (event) => {
     if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.startClientX;
+    const movementX = event.clientX - drag.lastClientX;
+    drag.lastClientX = event.clientX;
+    const nextDirection = movementX < -1 ? -1 : movementX > 1 ? 1 : dragDirection;
+    if (nextDirection !== dragDirection) {
+      dragDirection = nextDirection;
+      syncInteractionAnimation();
+    }
     setPosition(root, {
-      x: drag.startX + event.clientX - drag.startClientX,
+      x: drag.startX + deltaX,
       y: drag.startY + event.clientY - drag.startClientY,
     });
   });
@@ -151,6 +248,10 @@ function enableDragging(root: HTMLElement): void {
     drag = undefined;
     delete root.dataset.dragging;
     if (root.hasPointerCapture(event.pointerId)) root.releasePointerCapture(event.pointerId);
+    pointerHovering = event.type !== 'pointercancel' && root.matches(':hover');
+    interactionState = pointerHovering ? 'hover' : 'idle';
+    dragDirection = 0;
+    syncInteractionAnimation();
     sendPosition(finalPosition);
   };
 
@@ -178,6 +279,9 @@ function ensureRoot(pet: StoredDesktopPet): { root: HTMLElement; sprite: HTMLEle
 function loadSpritesheet(pet: StoredDesktopPet, position: DesktopPetPosition | null): void {
   ensureStyle();
   stopAnimation();
+  animationRuntime = null;
+  interactionState = 'idle';
+  dragDirection = 0;
   const generation = ++loadGeneration;
   const { root, sprite } = ensureRoot(pet);
   sprite.style.backgroundImage = `url("${pet.spritesheetDataUrl}")`;
@@ -185,8 +289,19 @@ function loadSpritesheet(pet: StoredDesktopPet, position: DesktopPetPosition | n
   const image = new Image();
   image.onload = () => {
     if (generation !== loadGeneration || !root.isConnected) return;
-    const frameWidth = image.naturalWidth / DEFAULT_COLUMNS;
-    const frameHeight = image.naturalHeight / DEFAULT_ROWS;
+    let config: ResolvedDesktopPetAnimations;
+    try {
+      config = resolveDesktopPetAnimations(
+        parseDesktopPetManifest(pet.manifest),
+        image.naturalWidth,
+        image.naturalHeight,
+      );
+    } catch {
+      removePet();
+      return;
+    }
+    const frameWidth = image.naturalWidth / config.columns;
+    const frameHeight = image.naturalHeight / config.rows;
     const scale = Math.min(
       1,
       MAX_RENDERED_FRAME_SIZE / frameWidth,
@@ -196,7 +311,8 @@ function loadSpritesheet(pet: StoredDesktopPet, position: DesktopPetPosition | n
     const renderedHeight = Math.max(1, Math.round(frameHeight * scale));
     sprite.style.width = `${renderedWidth}px`;
     sprite.style.height = `${renderedHeight}px`;
-    sprite.style.backgroundSize = `${image.naturalWidth * scale}px ${image.naturalHeight * scale}px`;
+    sprite.style.backgroundSize =
+      `${renderedWidth * config.columns}px ${renderedHeight * config.rows}px`;
     sprite.style.backgroundPosition = '0 0';
 
     if (position) {
@@ -208,13 +324,18 @@ function loadSpritesheet(pet: StoredDesktopPet, position: DesktopPetPosition | n
       lastPosition = { x: rect.left, y: rect.top };
     }
 
-    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      let frame = 0;
-      animationTimer = window.setInterval(() => {
-        frame = (frame + 1) % DEFAULT_FRAME_COUNT;
-        sprite.style.backgroundPosition = `${-frame * renderedWidth}px 0`;
-      }, FRAME_DURATION_MS);
-    }
+    animationRuntime = {
+      config,
+      sprite,
+      renderedWidth,
+      renderedHeight,
+      currentAnimationName: null,
+      reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    };
+    pointerHovering = root.matches(':hover');
+    interactionState = pointerHovering ? 'hover' : 'idle';
+    dragDirection = 0;
+    syncInteractionAnimation();
   };
   image.onerror = () => {
     if (generation === loadGeneration) removePet();
@@ -230,6 +351,7 @@ export function applyDesktopPetState(message: DesktopPetMessage): void {
 
   const samePet =
     lastPet?.manifest.id === message.pet.manifest.id &&
+    JSON.stringify(lastPet?.manifest) === JSON.stringify(message.pet.manifest) &&
     lastPet?.spritesheetDataUrl === message.pet.spritesheetDataUrl;
   lastPet = message.pet;
   lastPosition = message.position;

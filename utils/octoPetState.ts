@@ -1,21 +1,22 @@
 import type {
-  DesktopPetManifest,
   DesktopPetPosition,
   StoredDesktopPet,
 } from './octoRecall';
+import { parseDesktopPetManifest } from './octoPetManifest';
 
 export function isStoredDesktopPet(value: unknown): value is StoredDesktopPet {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const pet = value as Partial<StoredDesktopPet>;
-  const manifest = pet.manifest as Partial<DesktopPetManifest> | undefined;
-  return !!(
-    manifest &&
-    typeof manifest.id === 'string' &&
-    typeof manifest.displayName === 'string' &&
-    typeof manifest.spritesheetPath === 'string' &&
+  try {
+    parseDesktopPetManifest(pet.manifest);
+  } catch {
+    return false;
+  }
+  return (
     typeof pet.spritesheetDataUrl === 'string' &&
     /^data:image\/(?:webp|png|jpeg|gif);base64,/i.test(pet.spritesheetDataUrl) &&
-    typeof pet.importedAt === 'number'
+    typeof pet.importedAt === 'number' &&
+    Number.isFinite(pet.importedAt)
   );
 }
 
