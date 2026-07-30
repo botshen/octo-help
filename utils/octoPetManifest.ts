@@ -18,7 +18,7 @@ const MIN_FRAME_DURATION_MS = 16;
 const MAX_FRAME_DURATION_MS = 60_000;
 
 const STATE_KEYS = ['idle', 'hover', 'drag', 'dragLeft', 'dragRight'] as const;
-const STATE_ALIAS_KEYS = ['default', 'hover', 'dragging'] as const;
+const STATE_ALIAS_KEYS = ['default', 'hover', 'dragging', 'dragLeft', 'dragRight'] as const;
 const SPRITE_ALIAS_KEYS = ['columns', 'rows', 'defaultFps'] as const;
 
 const CODEX_STANDARD_ANIMATIONS: Record<string, DesktopPetAnimationManifest> = {
@@ -345,6 +345,8 @@ function parseStateAliases(
     ['idle', 'default'],
     ['hover', 'hover'],
     ['drag', 'dragging'],
+    ['dragLeft', 'dragLeft'],
+    ['dragRight', 'dragRight'],
   ];
   const result: DesktopPetStateAnimations = {};
   for (const [stateKey, aliasKey] of aliases) {
@@ -400,10 +402,12 @@ export function parseDesktopPetManifest(value: unknown): DesktopPetManifest {
   );
   const rows = resolveSameAlias(topLevelRows, spriteAliases.rows, 'rows', 'sprite.rows');
   const topLevelFrameDurationMs = optionalDuration(raw.frameDurationMs, 'frameDurationMs');
-  if (topLevelFrameDurationMs != null && spriteAliases.frameDurationMs != null) {
-    throw new Error('pet.json 不能同时设置 frameDurationMs 和 sprite.defaultFps');
-  }
-  const frameDurationMs = topLevelFrameDurationMs ?? spriteAliases.frameDurationMs;
+  const frameDurationMs = resolveSameAlias(
+    topLevelFrameDurationMs,
+    spriteAliases.frameDurationMs,
+    'frameDurationMs',
+    'sprite.defaultFps',
+  );
   const animations = parseAnimations(raw, columns, rows);
   const stateAnimations = mergeStateAliases(
     parseStateAnimations(raw.stateAnimations, animations),

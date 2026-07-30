@@ -89,8 +89,16 @@ describe('desktop pet animation manifests', () => {
         resting: { row: 0, frames: 5 },
         happy: { row: 1, frames: 3 },
         grabbed: { row: 2, frames: 2 },
+        grabbedLeft: { row: 2, frames: [0] },
+        grabbedRight: { row: 2, frames: [1] },
       },
-      states: { default: 'resting', hover: 'happy', dragging: 'grabbed' },
+      states: {
+        default: 'resting',
+        hover: 'happy',
+        dragging: 'grabbed',
+        dragLeft: 'grabbedLeft',
+        dragRight: 'grabbedRight',
+      },
     });
     const config = resolveDesktopPetAnimations(manifest, 500, 300);
 
@@ -98,12 +106,20 @@ describe('desktop pet animation manifests', () => {
       columns: 5,
       rows: 3,
       frameDurationMs: 100,
-      stateAnimations: { idle: 'resting', hover: 'happy', drag: 'grabbed' },
+      stateAnimations: {
+        idle: 'resting',
+        hover: 'happy',
+        drag: 'grabbed',
+        dragLeft: 'grabbedLeft',
+        dragRight: 'grabbedRight',
+      },
     });
     expect(config.animations.resting.frameDurationsMs).toEqual([100, 100, 100, 100, 100]);
     expect(selectDesktopPetAnimation(config, 'idle')).toBe('resting');
     expect(selectDesktopPetAnimation(config, 'hover')).toBe('happy');
     expect(selectDesktopPetAnimation(config, 'drag')).toBe('grabbed');
+    expect(selectDesktopPetAnimation(config, 'drag', -1)).toBe('grabbedLeft');
+    expect(selectDesktopPetAnimation(config, 'drag', 1)).toBe('grabbedRight');
   });
 
   it('accepts matching aliases but rejects contradictory duplicate declarations', () => {
@@ -111,7 +127,8 @@ describe('desktop pet animation manifests', () => {
       ...baseManifest,
       columns: 4,
       rows: 2,
-      sprite: { columns: 4, rows: 2 },
+      frameDurationMs: 125,
+      sprite: { columns: 4, rows: 2, defaultFps: 8 },
       animations: { idle: { row: 0, frames: 4 }, happy: { row: 1, frames: 4 } },
       stateAnimations: { idle: 'idle', hover: 'happy' },
       states: { default: 'idle', hover: 'happy' },
@@ -125,6 +142,15 @@ describe('desktop pet animation manifests', () => {
       sprite: { columns: 5, rows: 2 },
       animations: { idle: { row: 0, frames: 4 } },
     })).toThrow('columns 与 sprite.columns 配置冲突');
+
+    expect(() => parseDesktopPetManifest({
+      ...baseManifest,
+      columns: 4,
+      rows: 2,
+      frameDurationMs: 100,
+      sprite: { columns: 4, rows: 2, defaultFps: 8 },
+      animations: { idle: { row: 0, frames: 4 } },
+    })).toThrow('frameDurationMs 与 sprite.defaultFps 配置冲突');
 
     expect(() => parseDesktopPetManifest({
       ...baseManifest,

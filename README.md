@@ -44,35 +44,34 @@ pnpm build      # 生产构建
 
 Codex 宠物包可直接导入：`1536 × 1872` 的 v1 atlas 会自动识别，v2 包按官方格式在 `pet.json` 声明 `"spriteVersionNumber": 2`。静止播放 `idle`，悬浮播放 `waving`，拖动时按方向播放 `running-left` / `running-right`；松开后按鼠标是否仍在宠物上恢复悬浮或静止动作。标准 atlas 的其余 `jumping`、`failed`、`waiting`、`running`、`review` 动作也会完成解析。
 
-自定义 atlas 可使用 `animations`（也兼容同义字段 `actions`）和 `stateAnimations`：
+自定义 atlas 推荐使用顶层 `columns` / `rows` / `frameDurationMs` / `animations` / `stateAnimations`。以下是一个完整、最小可用的 `pet.json`：
 
 ```json
 {
   "id": "my-pet",
   "displayName": "My Pet",
   "spritesheetPath": "spritesheet.webp",
-  "columns": 6,
-  "rows": 3,
+  "columns": 4,
+  "rows": 1,
   "frameDurationMs": 125,
   "animations": {
-    "calm": { "row": 0, "frames": 6 },
-    "happy": { "row": 1, "frames": [0, 1, 2, 3], "fps": 10 },
-    "grabbed": { "row": 2, "frames": 6, "frameDurationMs": 90, "loop": true }
+    "idle": { "row": 0, "frames": 4 }
   },
   "stateAnimations": {
-    "idle": "calm",
-    "hover": "happy",
-    "drag": "grabbed"
+    "idle": "idle"
   }
 }
 ```
 
-`frames` 可以是从第 0 列开始的帧数，也可以是明确的列索引数组。动作可用 `fps`、`frameDurationMs` 或可选的 `frameDurationsMs` 逐帧时长；`dragLeft` / `dragRight` 可覆盖左右拖动动作。导入时会校验网格、行列范围、时长、状态引用与图片尺寸，错误包不会进入页面脚本。
+`animations` 也兼容同义顶层字段 `actions`。`frames` 可以是从第 0 列开始的帧数，也可以是明确的列索引数组。动作可用 `fps`、`frameDurationMs` 或可选的 `frameDurationsMs` 逐帧时长；`stateAnimations.dragLeft` / `dragRight` 可覆盖左右拖动动作。导入时会校验网格、行列范围、时长、状态引用与图片尺寸，错误包不会进入页面脚本。
 
 为兼容早期对外示例，也接受以下别名，导入后会规范化为上面的顶层格式：
 
 ```json
 {
+  "id": "my-pet",
+  "displayName": "My Pet",
+  "spritesheetPath": "spritesheet.webp",
   "sprite": { "columns": 6, "rows": 3, "defaultFps": 8 },
   "actions": {
     "calm": { "row": 0, "frames": 6 },
@@ -82,12 +81,14 @@ Codex 宠物包可直接导入：`1536 × 1872` 的 v1 atlas 会自动识别，v
   "states": {
     "default": "calm",
     "hover": "happy",
-    "dragging": "grabbed"
+    "dragging": "grabbed",
+    "dragLeft": "grabbed",
+    "dragRight": "grabbed"
   }
 }
 ```
 
-对应关系为 `sprite.columns/rows` → `columns/rows`、`sprite.defaultFps` → 全局帧率，以及 `states.default/hover/dragging` → `stateAnimations.idle/hover/drag`。同一包可同时写规范字段和别名，但两者必须一致；冲突会在导入时明确报错。
+对应关系为 `sprite.columns/rows` → `columns/rows`、`sprite.defaultFps` → `frameDurationMs = 1000 / defaultFps`，以及 `states.default/hover/dragging/dragLeft/dragRight` → `stateAnimations.idle/hover/drag/dragLeft/dragRight`。同一包可同时写推荐的顶层字段和兼容别名，但两者必须一致；冲突会在导入时明确报错。
 
 ## 安装 Release 包
 
