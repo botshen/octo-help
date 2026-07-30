@@ -12,6 +12,7 @@ import {
   setPlayerWatermark,
   setTheme,
 } from '@/utils/octoBeautify';
+import { applyDesktopPetState } from '@/utils/octoPetRenderer';
 
 /**
  * MAIN-world script.
@@ -310,7 +311,7 @@ export default defineUnlistedScript(() => {
           'display:block;max-width:200px;max-height:200px;border-radius:8px;object-fit:cover;';
         if (original.width && original.height) {
           // Preserve aspect ratio without forcing exact px (bubble caps at 200).
-          img.aspectRatio = `${original.width} / ${original.height}`;
+          img.style.aspectRatio = `${original.width} / ${original.height}`;
         }
         box.appendChild(img);
         textContent.appendChild(box);
@@ -526,6 +527,8 @@ export default defineUnlistedScript(() => {
       );
     } else if (data.type === MESSAGE_TYPE.ballCursor) {
       setBallCursor(!!data.enabled);
+    } else if (data.type === MESSAGE_TYPE.desktopPet) {
+      applyDesktopPetState(data);
     }
   });
 });

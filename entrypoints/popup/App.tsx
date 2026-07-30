@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import {
   BALL_CURSOR_STORAGE_KEY,
+  DESKTOP_PET_ENABLED_STORAGE_KEY,
+  DESKTOP_PET_POSITION_STORAGE_KEY,
+  DESKTOP_PET_STORAGE_KEY,
   GLOBAL_THEME_STORAGE_KEY,
   KICK_STYLE_STORAGE_KEY,
   MESSI_WATERMARK_STORAGE_KEY,
@@ -8,6 +11,7 @@ import {
   STORAGE_KEY,
   THEME_STORAGE_KEY,
   type PlayerWatermarkId,
+  type StoredDesktopPet,
 } from '@/utils/octoRecall';
 import {
   GLOBAL_THEMES,
@@ -17,6 +21,8 @@ import {
   KICK_STYLES,
   DEFAULT_KICK_STYLE,
 } from '@/utils/octoBeautify';
+import { parsePetPackage } from '@/utils/octoPet';
+import { isStoredDesktopPet } from '@/utils/octoPetState';
 import './App.css';
 
 const PLAYER_WATERMARKS: Array<{ id: PlayerWatermarkId; label: string; icon: string }> = [
@@ -32,7 +38,12 @@ function App() {
   const [kickStyle, setKick] = useState(DEFAULT_KICK_STYLE);
   const [playerWatermark, setPlayerWatermark] = useState<PlayerWatermarkId>('none');
   const [ballCursor, setBallCursor] = useState(true);
+  const [desktopPet, setDesktopPet] = useState<StoredDesktopPet | null>(null);
+  const [desktopPetEnabled, setDesktopPetEnabled] = useState(false);
+  const [petBusy, setPetBusy] = useState(false);
+  const [petError, setPetError] = useState('');
   const [loading, setLoading] = useState(true);
+  const petFileInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,6 +56,8 @@ function App() {
         PLAYER_WATERMARK_STORAGE_KEY,
         MESSI_WATERMARK_STORAGE_KEY,
         BALL_CURSOR_STORAGE_KEY,
+        DESKTOP_PET_STORAGE_KEY,
+        DESKTOP_PET_ENABLED_STORAGE_KEY,
       ])
       .then((res) => {
         if (!mounted) return;
@@ -62,7 +75,14 @@ function App() {
         }
         // Default ON (missing key => enabled).
         setBallCursor(res[BALL_CURSOR_STORAGE_KEY] !== false);
-        setLoading(false);
+        setDesktopPet(isStoredDesktopPet(res[DESKTOP_PET_STORAGE_KEY]) ? res[DESKTOP_PET_STORAGE_KEY] : null);
+        setDesktopPetEnabled(res[DESKTOP_PET_ENABLED_STORAGE_KEY] === true);
+      })
+      .catch(() => {
+        if (mounted) setPetError('读取本地设置失败，请重新打开扩展');
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
     return () => {
       mounted = false;
@@ -99,6 +119,63 @@ function App() {
     const next = !ballCursor;
     setBallCursor(next);
     await browser.storage.local.set({ [BALL_CURSOR_STORAGE_KEY]: next });
+  };
+
+  const importDesktopPet = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    event.currentTarget.value = '';
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      setPetError('请选择 .zip 或 .codex-pet.zip 文件');
+      return;
+    }
+
+    setPetBusy(true);
+    setPetError('');
+    try {
+      const pet = await parsePetPackage(file);
+      await browser.storage.local.set({
+        [DESKTOP_PET_STORAGE_KEY]: pet,
+        [DESKTOP_PET_ENABLED_STORAGE_KEY]: true,
+      });
+      setDesktopPet(pet);
+      setDesktopPetEnabled(true);
+    } catch (error) {
+      setPetError(error instanceof Error ? error.message : '导入宠物失败');
+    } finally {
+      setPetBusy(false);
+    }
+  };
+
+  const toggleDesktopPet = async () => {
+    if (!desktopPet || petBusy) return;
+    const next = !desktopPetEnabled;
+    setPetError('');
+    try {
+      await browser.storage.local.set({ [DESKTOP_PET_ENABLED_STORAGE_KEY]: next });
+      setDesktopPetEnabled(next);
+    } catch {
+      setPetError('保存宠物开关失败');
+    }
+  };
+
+  const deleteDesktopPet = async () => {
+    if (!desktopPet || petBusy) return;
+    setPetBusy(true);
+    setPetError('');
+    try {
+      await browser.storage.local.remove([
+        DESKTOP_PET_STORAGE_KEY,
+        DESKTOP_PET_ENABLED_STORAGE_KEY,
+        DESKTOP_PET_POSITION_STORAGE_KEY,
+      ]);
+      setDesktopPet(null);
+      setDesktopPetEnabled(false);
+    } catch {
+      setPetError('删除宠物失败');
+    } finally {
+      setPetBusy(false);
+    }
   };
 
   return (
@@ -184,6 +261,63 @@ function App() {
             </button>
           ))}
         </div>
+      </section>
+
+      <section className="group span-2 pet-section">
+        <div className="group-title">桌面宠物</div>
+        {desktopPet ? (
+          <div className="pet-card">
+            <div className="pet-copy">
+              <span className="pet-name">{desktopPet.manifest.displayName}</span>
+              {desktopPet.manifest.description && (
+                <span className="pet-description">{desktopPet.manifest.description}</span>
+              )}
+              <span className="pet-local-note">仅保存在本机，不会上传</span>
+            </div>
+            <div className="pet-actions">
+              <button
+                type="button"
+                role="switch"
+                aria-label="启用桌面宠物"
+                aria-checked={desktopPetEnabled}
+                className={`switch${desktopPetEnabled ? ' switch-on' : ''}`}
+                disabled={loading || petBusy}
+                onClick={toggleDesktopPet}
+              >
+                <span className="switch-knob" />
+              </button>
+              <button
+                type="button"
+                className="pet-delete"
+                disabled={petBusy}
+                onClick={deleteDesktopPet}
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="pet-empty">导入宠物包后，会在 Octo 页面右下角显示可拖拽的帧动画宠物。</p>
+        )}
+        <div className="pet-import-row">
+          <input
+            ref={petFileInput}
+            className="pet-file-input"
+            type="file"
+            accept=".zip,.codex-pet.zip,application/zip"
+            onChange={importDesktopPet}
+          />
+          <button
+            type="button"
+            className="pet-import"
+            disabled={loading || petBusy}
+            onClick={() => petFileInput.current?.click()}
+          >
+            {petBusy ? '处理中…' : desktopPet ? '更换宠物包' : '导入宠物包'}
+          </button>
+          <span className="pet-limit">支持 .zip / .codex-pet.zip，最大 10 MB</span>
+        </div>
+        {petError && <p className="pet-error" role="alert">{petError}</p>}
       </section>
 
       <section className="group span-2">

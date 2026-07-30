@@ -22,6 +22,29 @@ export type PlayerWatermarkId = 'none' | 'messi' | 'mbappe';
 /** storage.local key holding the "replace cursor with a football" on/off state. Default ON. */
 export const BALL_CURSOR_STORAGE_KEY = 'octoBallCursorEnabled';
 
+/** storage.local keys for the single imported desktop pet and its state. */
+export const DESKTOP_PET_STORAGE_KEY = 'octoDesktopPet';
+export const DESKTOP_PET_ENABLED_STORAGE_KEY = 'octoDesktopPetEnabled';
+export const DESKTOP_PET_POSITION_STORAGE_KEY = 'octoDesktopPetPosition';
+
+export interface DesktopPetManifest {
+  id: string;
+  displayName: string;
+  description?: string;
+  spritesheetPath: string;
+}
+
+export interface StoredDesktopPet {
+  manifest: DesktopPetManifest;
+  spritesheetDataUrl: string;
+  importedAt: number;
+}
+
+export interface DesktopPetPosition {
+  x: number;
+  y: number;
+}
+
 /** window.postMessage envelope source, so we ignore unrelated messages. */
 export const MESSAGE_SOURCE = 'octo-recall';
 
@@ -33,6 +56,8 @@ export const MESSAGE_TYPE = {
   kickStyle: 'kickStyle',
   playerWatermark: 'playerWatermark',
   ballCursor: 'ballCursor',
+  desktopPet: 'desktopPet',
+  desktopPetPosition: 'desktopPetPosition',
 } as const;
 
 export interface ToggleMessage {
@@ -77,10 +102,28 @@ export interface BallCursorMessage {
   enabled: boolean;
 }
 
+/** Complete storage-backed pet state sent from the isolated content script. */
+export interface DesktopPetMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: typeof MESSAGE_TYPE.desktopPet;
+  enabled: boolean;
+  pet: StoredDesktopPet | null;
+  position: DesktopPetPosition | null;
+}
+
+/** Drag result sent from the MAIN world back to the content script for storage. */
+export interface DesktopPetPositionMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: typeof MESSAGE_TYPE.desktopPetPosition;
+  position: DesktopPetPosition;
+}
+
 export type OctoMessage =
   | ToggleMessage
   | ThemeMessage
   | GlobalThemeMessage
   | KickStyleMessage
   | PlayerWatermarkMessage
-  | BallCursorMessage;
+  | BallCursorMessage
+  | DesktopPetMessage
+  | DesktopPetPositionMessage;

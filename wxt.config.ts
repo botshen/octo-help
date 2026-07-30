@@ -8,8 +8,8 @@ export default defineConfig({
   modules: ['@wxt-dev/module-react'],
   manifest: {
     name: 'Octo 聊天增强',
-    description: '增强 Octo 网页聊天：还原已撤回消息，提供消息美化、全站主题、世界杯特效和球星水印。',
-    permissions: ['storage'],
+    description: '增强 Octo 网页聊天：还原已撤回消息，提供消息美化、全站主题、世界杯特效、球星水印和本地桌面宠物。',
+    permissions: ['storage', 'unlimitedStorage'],
     host_permissions: OCTO_MATCHES,
     web_accessible_resources: [
       {

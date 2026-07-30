@@ -1,5 +1,8 @@
 import {
   BALL_CURSOR_STORAGE_KEY,
+  DESKTOP_PET_ENABLED_STORAGE_KEY,
+  DESKTOP_PET_POSITION_STORAGE_KEY,
+  DESKTOP_PET_STORAGE_KEY,
   GLOBAL_THEME_STORAGE_KEY,
   KICK_STYLE_STORAGE_KEY,
   MESSI_WATERMARK_STORAGE_KEY,
@@ -9,6 +12,9 @@ import {
   STORAGE_KEY,
   THEME_STORAGE_KEY,
   type BallCursorMessage,
+  type DesktopPetMessage,
+  type DesktopPetPosition,
+  type DesktopPetPositionMessage,
   type GlobalThemeMessage,
   type KickStyleMessage,
   type PlayerWatermarkId,
@@ -17,6 +23,7 @@ import {
   type ToggleMessage,
 } from '@/utils/octoRecall';
 import { DEFAULT_GLOBAL_THEME, DEFAULT_KICK_STYLE, DEFAULT_THEME } from '@/utils/octoBeautify';
+import { isDesktopPetPosition, isStoredDesktopPet } from '@/utils/octoPetState';
 
 /**
  * ISOLATED-world content script.
@@ -93,6 +100,23 @@ export default defineContentScript({
       );
     }
 
+    function postDesktopPet(
+      pet: DesktopPetMessage['pet'],
+      enabled: boolean,
+      position: DesktopPetPosition | null,
+    ) {
+      window.postMessage(
+        {
+          source: MESSAGE_SOURCE,
+          type: MESSAGE_TYPE.desktopPet,
+          pet,
+          enabled,
+          position,
+        } satisfies DesktopPetMessage,
+        '*',
+      );
+    }
+
     // Push current state once the injected script is listening. It registers
     // its window 'message' listener synchronously on evaluation, but post twice
     // (now + next tick) to avoid a first-frame race.
@@ -104,6 +128,9 @@ export default defineContentScript({
       PLAYER_WATERMARK_STORAGE_KEY,
       MESSI_WATERMARK_STORAGE_KEY,
       BALL_CURSOR_STORAGE_KEY,
+      DESKTOP_PET_STORAGE_KEY,
+      DESKTOP_PET_ENABLED_STORAGE_KEY,
+      DESKTOP_PET_POSITION_STORAGE_KEY,
     ]);
     const initialEnabled = stored[STORAGE_KEY] === true;
     const initialTheme =
@@ -127,6 +154,13 @@ export default defineContentScript({
           : 'none';
     // Default ON so existing users keep the football cursor.
     const initialBallCursor = stored[BALL_CURSOR_STORAGE_KEY] !== false;
+    let desktopPet = isStoredDesktopPet(stored[DESKTOP_PET_STORAGE_KEY])
+      ? stored[DESKTOP_PET_STORAGE_KEY]
+      : null;
+    let desktopPetEnabled = stored[DESKTOP_PET_ENABLED_STORAGE_KEY] === true;
+    let desktopPetPosition = isDesktopPetPosition(stored[DESKTOP_PET_POSITION_STORAGE_KEY])
+      ? stored[DESKTOP_PET_POSITION_STORAGE_KEY]
+      : null;
 
     const pushAll = () => {
       postKickStyle(initialKick);
@@ -135,6 +169,7 @@ export default defineContentScript({
       postPlayerWatermark(initialPlayerWatermark);
       postBallCursor(initialBallCursor);
       postToggle(initialEnabled);
+      postDesktopPet(desktopPet, desktopPetEnabled, desktopPetPosition);
     };
     pushAll();
     setTimeout(pushAll, 0);
@@ -162,6 +197,40 @@ export default defineContentScript({
       if (BALL_CURSOR_STORAGE_KEY in changes) {
         postBallCursor(changes[BALL_CURSOR_STORAGE_KEY].newValue !== false);
       }
+      if (DESKTOP_PET_STORAGE_KEY in changes) {
+        const next = changes[DESKTOP_PET_STORAGE_KEY].newValue;
+        desktopPet = isStoredDesktopPet(next) ? next : null;
+      }
+      if (DESKTOP_PET_ENABLED_STORAGE_KEY in changes) {
+        desktopPetEnabled = changes[DESKTOP_PET_ENABLED_STORAGE_KEY].newValue === true;
+      }
+      if (DESKTOP_PET_POSITION_STORAGE_KEY in changes) {
+        const next = changes[DESKTOP_PET_POSITION_STORAGE_KEY].newValue;
+        desktopPetPosition = isDesktopPetPosition(next) ? next : null;
+      }
+      if (
+        DESKTOP_PET_STORAGE_KEY in changes ||
+        DESKTOP_PET_ENABLED_STORAGE_KEY in changes ||
+        DESKTOP_PET_POSITION_STORAGE_KEY in changes
+      ) {
+        postDesktopPet(desktopPet, desktopPetEnabled, desktopPetPosition);
+      }
+    });
+
+    // The page owns drag interaction; persist only the bounded coordinate
+    // message emitted by our MAIN-world renderer.
+    window.addEventListener('message', (event: MessageEvent) => {
+      if (event.source !== window) return;
+      const data = event.data as DesktopPetPositionMessage | undefined;
+      if (
+        !data ||
+        data.source !== MESSAGE_SOURCE ||
+        data.type !== MESSAGE_TYPE.desktopPetPosition ||
+        !isDesktopPetPosition(data.position)
+      ) {
+        return;
+      }
+      void browser.storage.local.set({ [DESKTOP_PET_POSITION_STORAGE_KEY]: data.position });
     });
   },
 });
