@@ -18,6 +18,8 @@ const MIN_FRAME_DURATION_MS = 16;
 const MAX_FRAME_DURATION_MS = 60_000;
 
 const STATE_KEYS = ['idle', 'hover', 'drag', 'dragLeft', 'dragRight'] as const;
+const STATE_ALIAS_KEYS = ['default', 'hover', 'dragging'] as const;
+const SPRITE_ALIAS_KEYS = ['columns', 'rows', 'defaultFps'] as const;
 
 const CODEX_STANDARD_ANIMATIONS: Record<string, DesktopPetAnimationManifest> = {
   idle: { row: 0, frames: 6, frameDurationsMs: [280, 110, 110, 140, 140, 320] },
@@ -120,6 +122,69 @@ function optionalDuration(value: unknown, field: string): number | undefined {
   return value;
 }
 
+function optionalFps(value: unknown, field: string): number | undefined {
+  if (value == null) return undefined;
+  if (
+    typeof value !== 'number' ||
+    !Number.isFinite(value) ||
+    value < 0.1 ||
+    value > 60
+  ) {
+    throw new Error(`pet.json 的 ${field} 必须是 0.1 到 60`);
+  }
+  return value;
+}
+
+function requireObject(value: unknown, field: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`pet.json 的 ${field} 必须是对象`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function rejectUnknownKeys(
+  raw: Record<string, unknown>,
+  allowedKeys: readonly string[],
+  field: string,
+): void {
+  const unknownKeys = Object.keys(raw).filter((key) => !allowedKeys.includes(key));
+  if (unknownKeys.length) {
+    throw new Error(`pet.json 的 ${field} 包含未知字段：${unknownKeys.join('、')}`);
+  }
+}
+
+function resolveSameAlias<T>(
+  primary: T | undefined,
+  alias: T | undefined,
+  primaryField: string,
+  aliasField: string,
+): T | undefined {
+  if (primary != null && alias != null && primary !== alias) {
+    throw new Error(`pet.json 的 ${primaryField} 与 ${aliasField} 配置冲突`);
+  }
+  return primary ?? alias;
+}
+
+function parseSpriteAliases(raw: Record<string, unknown>): {
+  columns?: number;
+  rows?: number;
+  frameDurationMs?: number;
+} {
+  if (raw.sprite == null) return {};
+  const sprite = requireObject(raw.sprite, 'sprite');
+  rejectUnknownKeys(sprite, SPRITE_ALIAS_KEYS, 'sprite');
+  const columns = optionalInteger(sprite.columns, 'sprite.columns', 1, MAX_GRID_SIZE);
+  const rows = optionalInteger(sprite.rows, 'sprite.rows', 1, MAX_GRID_SIZE);
+  if ((columns == null) !== (rows == null)) {
+    throw new Error('pet.json 的 sprite.columns 和 sprite.rows 必须同时声明');
+  }
+  const defaultFps = optionalFps(sprite.defaultFps, 'sprite.defaultFps');
+  return {
+    ...(columns ? { columns, rows: rows! } : {}),
+    ...(defaultFps == null ? {} : { frameDurationMs: 1000 / defaultFps }),
+  };
+}
+
 function parseAnimation(
   value: unknown,
   name: string,
@@ -157,18 +222,7 @@ function parseAnimation(
     frames = frameCount;
   }
 
-  let fps: number | undefined;
-  if (raw.fps != null) {
-    if (
-      typeof raw.fps !== 'number' ||
-      !Number.isFinite(raw.fps) ||
-      raw.fps < 0.1 ||
-      raw.fps > 60
-    ) {
-      throw new Error(`pet.json 的动画 ${name}.fps 必须是 0.1 到 60`);
-    }
-    fps = raw.fps;
-  }
+  const fps = optionalFps(raw.fps, `animations.${name}.fps`);
   const frameDurationMs = optionalDuration(
     raw.frameDurationMs,
     `animations.${name}.frameDurationMs`,
@@ -277,6 +331,48 @@ function parseStateAnimations(
   return result;
 }
 
+function parseStateAliases(
+  value: unknown,
+  animations: Record<string, DesktopPetAnimationManifest> | undefined,
+): DesktopPetStateAnimations | undefined {
+  if (value == null) return undefined;
+  if (!animations) {
+    throw new Error('pet.json 使用 states 时必须声明 animations/actions');
+  }
+  const raw = requireObject(value, 'states');
+  rejectUnknownKeys(raw, STATE_ALIAS_KEYS, 'states');
+  const aliases: Array<[keyof DesktopPetStateAnimations, (typeof STATE_ALIAS_KEYS)[number]]> = [
+    ['idle', 'default'],
+    ['hover', 'hover'],
+    ['drag', 'dragging'],
+  ];
+  const result: DesktopPetStateAnimations = {};
+  for (const [stateKey, aliasKey] of aliases) {
+    if (raw[aliasKey] == null) continue;
+    const name = requireShortString(raw[aliasKey], `states.${aliasKey}`, 64);
+    if (!Object.prototype.hasOwnProperty.call(animations, name)) {
+      throw new Error(`pet.json 的 states.${aliasKey} 引用了不存在的动画：${name}`);
+    }
+    result[stateKey] = name;
+  }
+  return result;
+}
+
+function mergeStateAliases(
+  primary: DesktopPetStateAnimations | undefined,
+  alias: DesktopPetStateAnimations | undefined,
+): DesktopPetStateAnimations | undefined {
+  if (!primary) return alias;
+  if (!alias) return primary;
+  const result = { ...alias, ...primary };
+  for (const key of STATE_KEYS) {
+    if (primary[key] && alias[key] && primary[key] !== alias[key]) {
+      throw new Error(`pet.json 的 stateAnimations.${key} 与 states 别名配置冲突`);
+    }
+  }
+  return result;
+}
+
 export function parseDesktopPetManifest(value: unknown): DesktopPetManifest {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('pet.json 必须是 JSON 对象');
@@ -290,14 +386,29 @@ export function parseDesktopPetManifest(value: unknown): DesktopPetManifest {
     | 1
     | 2
     | undefined;
-  const columns = optionalInteger(raw.columns, 'columns', 1, MAX_GRID_SIZE);
-  const rows = optionalInteger(raw.rows, 'rows', 1, MAX_GRID_SIZE);
-  if ((columns == null) !== (rows == null)) {
+  const spriteAliases = parseSpriteAliases(raw);
+  const topLevelColumns = optionalInteger(raw.columns, 'columns', 1, MAX_GRID_SIZE);
+  const topLevelRows = optionalInteger(raw.rows, 'rows', 1, MAX_GRID_SIZE);
+  if ((topLevelColumns == null) !== (topLevelRows == null)) {
     throw new Error('pet.json 的 columns 和 rows 必须同时声明');
   }
-  const frameDurationMs = optionalDuration(raw.frameDurationMs, 'frameDurationMs');
+  const columns = resolveSameAlias(
+    topLevelColumns,
+    spriteAliases.columns,
+    'columns',
+    'sprite.columns',
+  );
+  const rows = resolveSameAlias(topLevelRows, spriteAliases.rows, 'rows', 'sprite.rows');
+  const topLevelFrameDurationMs = optionalDuration(raw.frameDurationMs, 'frameDurationMs');
+  if (topLevelFrameDurationMs != null && spriteAliases.frameDurationMs != null) {
+    throw new Error('pet.json 不能同时设置 frameDurationMs 和 sprite.defaultFps');
+  }
+  const frameDurationMs = topLevelFrameDurationMs ?? spriteAliases.frameDurationMs;
   const animations = parseAnimations(raw, columns, rows);
-  const stateAnimations = parseStateAnimations(raw.stateAnimations, animations);
+  const stateAnimations = mergeStateAliases(
+    parseStateAnimations(raw.stateAnimations, animations),
+    parseStateAliases(raw.states, animations),
+  );
 
   return {
     id: requireShortString(raw.id, 'id', 100),

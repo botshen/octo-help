@@ -69,6 +69,26 @@ Codex 宠物包可直接导入：`1536 × 1872` 的 v1 atlas 会自动识别，v
 
 `frames` 可以是从第 0 列开始的帧数，也可以是明确的列索引数组。动作可用 `fps`、`frameDurationMs` 或可选的 `frameDurationsMs` 逐帧时长；`dragLeft` / `dragRight` 可覆盖左右拖动动作。导入时会校验网格、行列范围、时长、状态引用与图片尺寸，错误包不会进入页面脚本。
 
+为兼容早期对外示例，也接受以下别名，导入后会规范化为上面的顶层格式：
+
+```json
+{
+  "sprite": { "columns": 6, "rows": 3, "defaultFps": 8 },
+  "actions": {
+    "calm": { "row": 0, "frames": 6 },
+    "happy": { "row": 1, "frames": 4 },
+    "grabbed": { "row": 2, "frames": 6 }
+  },
+  "states": {
+    "default": "calm",
+    "hover": "happy",
+    "dragging": "grabbed"
+  }
+}
+```
+
+对应关系为 `sprite.columns/rows` → `columns/rows`、`sprite.defaultFps` → 全局帧率，以及 `states.default/hover/dragging` → `stateAnimations.idle/hover/drag`。同一包可同时写规范字段和别名，但两者必须一致；冲突会在导入时明确报错。
+
 ## 安装 Release 包
 
 从仓库的 [Releases](https://github.com/botshen/octo-help/releases) 下载 Chrome ZIP，解压后在 `chrome://extensions` 中打开「开发者模式」，选择「加载已解压的扩展程序」。

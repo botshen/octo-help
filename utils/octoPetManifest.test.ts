@@ -81,6 +81,60 @@ describe('desktop pet animation manifests', () => {
     expect(selectDesktopPetAnimation(config, 'drag')).toBe('grabbed');
   });
 
+  it('normalizes nested sprite and states aliases used by external package examples', () => {
+    const manifest = parseDesktopPetManifest({
+      ...baseManifest,
+      sprite: { columns: 5, rows: 3, defaultFps: 10 },
+      actions: {
+        resting: { row: 0, frames: 5 },
+        happy: { row: 1, frames: 3 },
+        grabbed: { row: 2, frames: 2 },
+      },
+      states: { default: 'resting', hover: 'happy', dragging: 'grabbed' },
+    });
+    const config = resolveDesktopPetAnimations(manifest, 500, 300);
+
+    expect(manifest).toMatchObject({
+      columns: 5,
+      rows: 3,
+      frameDurationMs: 100,
+      stateAnimations: { idle: 'resting', hover: 'happy', drag: 'grabbed' },
+    });
+    expect(config.animations.resting.frameDurationsMs).toEqual([100, 100, 100, 100, 100]);
+    expect(selectDesktopPetAnimation(config, 'idle')).toBe('resting');
+    expect(selectDesktopPetAnimation(config, 'hover')).toBe('happy');
+    expect(selectDesktopPetAnimation(config, 'drag')).toBe('grabbed');
+  });
+
+  it('accepts matching aliases but rejects contradictory duplicate declarations', () => {
+    const matching = parseDesktopPetManifest({
+      ...baseManifest,
+      columns: 4,
+      rows: 2,
+      sprite: { columns: 4, rows: 2 },
+      animations: { idle: { row: 0, frames: 4 }, happy: { row: 1, frames: 4 } },
+      stateAnimations: { idle: 'idle', hover: 'happy' },
+      states: { default: 'idle', hover: 'happy' },
+    });
+    expect(matching.stateAnimations).toEqual({ idle: 'idle', hover: 'happy' });
+
+    expect(() => parseDesktopPetManifest({
+      ...baseManifest,
+      columns: 4,
+      rows: 2,
+      sprite: { columns: 5, rows: 2 },
+      animations: { idle: { row: 0, frames: 4 } },
+    })).toThrow('columns 与 sprite.columns 配置冲突');
+
+    expect(() => parseDesktopPetManifest({
+      ...baseManifest,
+      sprite: { columns: 4, rows: 2 },
+      animations: { idle: { row: 0, frames: 4 }, happy: { row: 1, frames: 4 } },
+      stateAnimations: { hover: 'happy' },
+      states: { hover: 'idle' },
+    })).toThrow('stateAnimations.hover 与 states 别名配置冲突');
+  });
+
   it('rejects broken state references and grid dimensions with clear errors', () => {
     expect(() => parseDesktopPetManifest({
       ...baseManifest,
@@ -89,6 +143,13 @@ describe('desktop pet animation manifests', () => {
       animations: { idle: { row: 0, frames: 4 } },
       stateAnimations: { hover: 'missing' },
     })).toThrow('引用了不存在的动画');
+
+    expect(() => parseDesktopPetManifest({
+      ...baseManifest,
+      sprite: { columns: 4, rows: 2 },
+      actions: { idle: { row: 0, frames: 4 } },
+      states: { dragging: 'missing' },
+    })).toThrow('states.dragging 引用了不存在的动画');
 
     const custom = parseDesktopPetManifest({
       ...baseManifest,
