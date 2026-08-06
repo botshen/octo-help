@@ -32,6 +32,9 @@
 - `utils/octoBeautify.css` — 美化样式表，由 `?raw` 原文字导入（**不要**改成 `?inline`，原因见文件顶部注释）。
 - `utils/octoThemeCatalog.ts` — 主题/皮肤/射门样式的纯数据目录，**零 import**。Side Panel 和内容脚本只靠它拿默认值，不用拖入引擎。
 - `utils/octoSelectors.ts` — **所有 JS 侧 Octo DOM 选择器的单一来源**，兼 DOM 兼容性自检。新增选择器请加在这里。
+- `utils/octoPageFeatures.ts` — 页面侧功能登记表（总开关控制的启/停）。`stop` 必填。
+- `utils/octoSettingsParsers.ts` — storage 原始值 → 设置值的纯函数解析器（含默认值与迁移规则）。
+- `utils/octoSettingsRelay.ts` — `postToPage` 与变更集工具。
 - `utils/octoSyncScope.ts` — mutation 分类：判定一批 DOM 变动需要哪些 pass、可限定在哪些子树。
 - `utils/octoFullscreenKickLazy.ts` — pixi 射门特效的惰加载门面（签名与同步版一致）。
 - `utils/octoFullscreenKickPixi.ts` — pixi.js 实现，只能由 `octo-kick-world.ts` 引入。
@@ -72,6 +75,23 @@ Octo 是我们不控制的移动目标。改版重命名类名时，受影响的
 
 避免误报是设计重点：应用外壳未渲染前结论为「不确定」且不报告；每项检查声明前置条件，前置缺失时不连带报告其下游检查；仅在结论变化时写入。
 
+
+## 新增一个功能要改哪里
+
+目标是每项只改一处，且漏改会被编译器或测试拦下：
+
+1. `octoRecall.ts`：加 storage key + 消息类型与接口（并加入 `OctoMessage` 联合）。
+2. `octoSettingsParsers.ts`：加解析器，并把 key 加入 `RELAYED_STORAGE_KEYS` 和 `SIMPLE_RELAY_KEYS`。
+   → 内容脚本的 relay 表是以这个联合为键的 `Record`，**忘了接线会直接编译失败**。
+3. `octo-main-world.ts`：在 `SETTING_HANDLERS` 表里加一行。
+4. 如果它在页面上留下任何痕迹（样式、属性、节点、监听器、定时器）：在 `PAGE_FEATURES`
+   里加一项，`stop` 是必填的。这是「关掉总开关 = 等于没装插件」的结构保证。
+5. `sidepanel/App.tsx`：加 UI。
+
+关于解析器：大多数设置只需一个解析函数，因为初始快照和 `onChanged` 变更集形状相同。
+但注意：删除宠物会 **remove** `octoDesktopPetEnabled` 键，变更集里它是 `undefined` ——
+此时套用「初始默认值」会把用户刚删的宠物重新启用。所以三个设置刻意保留了
+`...Initial` / `...FromChange` 两个版本，并有测试断言二者结果不同，防止后人「清理」掉。
 
 ## 开发
 
