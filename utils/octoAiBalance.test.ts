@@ -263,6 +263,8 @@ describe('presentation', () => {
   });
 
   it('masks the key so the panel never shows a reusable secret', () => {
+    // Fixtures are made up on purpose: this repo is public, so a real key in a
+    // test is a published key.
     expect(maskSecret('sk-EXAMPLE0000000000key')).toBe('sk-EXA••••0key');
     expect(maskSecret('short')).toBe('sh••••');
     expect(maskSecret('   ')).toBe('');

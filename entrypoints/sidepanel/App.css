@@ -51,9 +51,9 @@ select:disabled {
   width: 42px;
   height: 42px;
   flex: none;
-  border-radius: 12px;
-  object-fit: cover;
-  box-shadow: 0 4px 14px rgba(71, 38, 133, 0.18);
+  /* The mark is a transparent cut-out, so the shadow has to follow its shape —
+     a box-shadow would draw a soft square behind a round octopus. */
+  filter: drop-shadow(0 3px 8px rgba(226, 62, 132, 0.28));
 }
 
 .brand-copy {
