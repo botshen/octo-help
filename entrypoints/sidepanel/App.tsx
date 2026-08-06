@@ -43,6 +43,7 @@ import {
   type ThemeDef,
 } from '@/utils/octoThemeCatalog';
 import { isBuiltInCompanionId, isStoredDesktopPet } from '@/utils/octoPetState';
+import { AiBalanceCard } from './AiBalanceCard';
 import './App.css';
 
 const PLAYER_WATERMARKS: Array<{ id: PlayerWatermarkId; label: string; icon: string }> = [
@@ -904,6 +905,8 @@ function App() {
           </div>
           {petError && <p className="pet-error" role="alert">{petError}</p>}
         </section>
+
+        <AiBalanceCard disabled={loading} />
 
         <section className="settings-card" aria-labelledby="message-title">
           <header className="section-heading">

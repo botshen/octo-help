@@ -7,6 +7,7 @@
 - **Bot 资料卡「全息卡牌」+ 开卡抽卡** —— 把 Bot 资料卡改成 synthwave 落日 banner + 悬浮圆头像 + 信息合并大框 + 创建者置底署名，随鼠标 3D 倾斜；每次打开还会随机抽一个稀有度（宝可梦式档位 N/R/SR/SSR/UR，越稀越少），据此渲染金箔全息卡框、稀有度角标与高档辉光脉动，SR 及以上播放全屏揭晓特效。
 - **全站主题 + 世界杯特效** —— 可切换导航、会话和输入区配色，提供足球射门动画与梅西、姆巴佩水印。
 - **输入框宠物** —— 内置蚂蚁、蜗牛、巫师和僵尸四种巡游宠物，输入或收到新消息时在输入框上沿活动；也可导入 `.zip` / `.codex-pet.zip` 自定义宠物。
+- **AI 余额** —— 填一个大模型网关的 API Key（内置 LLM Gateway 预设，也支持自定义接口 / 从 curl 粘贴），在设置页和扩展图标角标上看剩余额度，可选在 Octo 输入框旁显示；余额低于阈值时角标转红。
 - **舒适输入框** —— 默认提供三行编辑空间，将工具栏移到右下角，同时保留 Octo 原生的附件、快捷键和全屏展开能力。
 - **GitHub 快捷入口** —— 自动识别消息中的仓库、Issue、PR、Commit、Action、Release 和文件链接，在消息旁提供准确跳转；PR/Issue 编号后即使直接粘着文字也不会把文字带进 URL。
 - **新消息气泡** —— 桌宠启用时，当前页面收到他人的新消息会显示 5 秒短气泡；内容只在本地内存中处理，不持久化。
@@ -20,12 +21,14 @@
 - **开卡抽卡**：Bot 资料卡弹窗挂载时，美化引擎的 `sync()` 按加权概率 `Math.random()` 抽一个稀有度，写到 `.wk-modal-shell` / `.wk-bot-detail-content` 的 `data-octo-rarity` 上——卡框配色、角标文字（`content: attr(...)`）、辉光强度全部由 CSS 据此渲染。抽卡是「每个卡片实例一次」：同一弹窗重渲染沿用已抽结果，关闭重开则是新实例、重新抽。揭晓特效节点注入 `<body>`（在弹窗 React 树之外，避免被 reconcile 清掉），播完自移除。只读随机 + 自身属性写入，不改源码、不改 React 状态。
 - **桌面宠物**：Side Panel 使用 JSZip 本地校验并解压宠物包，把 manifest 与 spritesheet data URL 存入 `browser.storage.local`；内容脚本把状态转发到 MAIN world，页面脚本按 manifest 播放动作状态机，并把拖拽位置回写 storage。Codex v1 `8 × 9` 与 v2 `8 × 11` atlas 使用官方动作行和逐帧时长；无动画配置的旧 Octo 包仍按 `12 × 13` 第一行播放。
 - **输入区增强**：舒适模式只通过 scoped CSS 调整 Octo 的 `.wk-messageinput-*` 布局，不接管 Tiptap 编辑器事件；宠物输入框模式用 `ResizeObserver`、滚动监听和批量定位跟随当前会话输入框。
+- **AI 余额**：Side Panel 只写配置（接口 + 密钥），background 用 `chrome.alarms` 定时 `fetch`、把结果写入缓存并更新扩展角标。取值不执行用户粘贴的 JS（MV3 扩展页禁 `eval`，开沙箱等于把任意代码和跨域 fetch 权限绑在一起），改用声明式路径 `data.remain_quota_usd` + 倍率/单位/小数位。接口域名走 `optional_host_permissions` 运行时申请，删除配置时一并 `permissions.remove`。
 
 美化/换肤逻辑移植自油猴脚本 [an9xyz/octo-script](https://github.com/an9xyz/octo-script)（MIT），改为由扩展 Side Panel + `browser.storage` 驱动，去掉了原脚本页面内的 NavRail 菜单。
 
 ## 结构
 
-- `entrypoints/octo.content.ts` — 内容脚本（ISOLATED）：读 `storage`、注入 MAIN-world 脚本、转发设置状态，并持久化页面回传的宠物位置与兼容性报告。体积严格控制在 15 KB：不得 import 美化引擎。
+- `entrypoints/octo.content.ts` — 内容脚本（ISOLATED）：读 `storage`、注入 MAIN-world 脚本、转发设置状态，并持久化页面回传的宠物位置与兼容性报告。体积上限 16 KB（当前 15.2 KB）：不得 import 美化引擎，也不得 import AI 余额逻辑（见下方约束）。
+- `entrypoints/background.ts` — Service Worker：打开 Side Panel，并独占 AI 余额的 `fetch`、定时刷新、角标与页面展示值投影。
 - `entrypoints/octo-main-world.ts` — MAIN-world 脚本：撤回还原（Fiber 反查 + 克隆气泡 + `MutationObserver`）、启动美化引擎、运行 DOM 兼容性自检。
 - `entrypoints/octo-kick-world.ts` — 按需注入的 MAIN-world 脚本，封装 pixi.js 射门特效（见下方「体积与性能约束」）。
 - `utils/octoBeautify.ts` — 美化 + 换肤引擎（主题模型 / 折叠展开 / AI 连续标记 / 限高展开 / 作用域化 sync）。
@@ -46,6 +49,8 @@
 - `utils/octoGithubLink.ts` — GitHub URL 边界识别、分类和消息快捷入口。
 - `utils/octoComposerEnhancer.ts` — 三行舒适输入框样式和完整还原。
 - `utils/octoPetSpeech.ts` — 监听当前会话新增消息、提取短摘要、过滤自己/系统/撤回/重复消息。
+- `utils/octoAiBalance.ts` — AI 余额的纯逻辑：预设、配置校验、JSON 取值路径、curl 解析、格式化与页面展示值投影。
+- `utils/octoAiBalancePill.ts` — 输入框右上角的余额小徽标（只接收格式化后的文字）。
 - `entrypoints/sidepanel/` — 侧边栏完整设置：全局开关、主题、特效、球星、桌宠和撤回消息设置，并展示兼容性告警。
 - `assets/player-source/` — 球星水印源图，仅供 `scripts/split-player-animation-assets.py` 使用，**不打包进扩展**。
 
@@ -57,6 +62,7 @@
 - **内容脚本不得 import 美化引擎**。它只需转发设置；曾因为 import 三个默认主题常量而把整个 pixi 拖进去（231 KB 死代码）。默认值请从 `octoThemeCatalog` 取。
 - **sync 的代价不得随会话长度增长**。消息相关的 pass 靠 `octoSyncScope` 限定在变动子树内；clamp 的测高读写分离并用 `WeakSet` 记忆结果。实测：3000 条消息下单条新消息的处理从 9.1 ms 降到 1.0 ms。
 - **不要用 `ResizeObserver` 观察消息元素**。它对目标持强引用，会把被回收的上千条消息钉在内存里。clamp 的失效信号用的是 document 级 `load` 捕获 + window `resize`。
+- **AI 余额的密钥和取值逻辑不得进入内容脚本**。内容脚本只转发 background 预先算好的 `octoAiBalancePage`（`{ text, low }`）；它不读配置键，也不 import `octoAiBalance`。曾经直接在内容脚本里格式化，把预设表、curl 解析和配置校验一起拖进常驻包（14.9 KB → 18.8 KB），而它需要的只是一个字符串。
 - **WXT 自动导入是关的**（`wxt.config.ts` 的 `imports: false`），WXT API 从 `#imports` 显式导入。自动导入扫描 `utils/` 时，会把 `setFullscreenKick*` 这组同名导出解析到 **pixi 实现**而不是懒加载门面：一旦 main-world 侧漏写一行 import，540 KB 引擎就会静默进入常驻包，而且绕过上面那条 eslint 守卫。
 
 ## 安全模型
@@ -69,6 +75,8 @@ MAIN world 与页面共享同一个 realm，`window.postMessage` **不是可信�
 - 任何来自消息的 URL 必须收敛到安全集合：宠物图只接受 `data:image/*;base64,`，水印图由 `extensionAssetUrl()` 钉住协议与路径。否则页面可以借插件之手向外部发请求（装机探测 + 内网外发通道）。
 - 主题类参数统一过 `*ById()` 白名单，未知值回退默认而不是直接 `setAttribute`。
 - 页面上不用 `innerHTML` 拼接（MAIN world 的 innerHTML 以页面权限执行）。
+- **AI 余额的密钥只存 `storage.local`，绝不进页面**。MAIN world 与页面同 realm，凡是发到页面的东西都等于公开，所以余额只以「格式化后的字符串」下发；`fetch` 在 background 完成，且只允许 `https://`（否则密钥会明文上线）。
+- **不执行用户提供的取值函数**。取值是声明式路径，`readJsonPath` 只做自有属性访问并拒绝 `__proto__` / `constructor` / `prototype`。
 
 ## 兼容性自检
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AI_BALANCE_PAGE_STORAGE_KEY,
   BALL_CURSOR_STORAGE_KEY,
   BUILT_IN_COMPANION_STORAGE_KEY,
   COMPOSER_ENHANCEMENT_STORAGE_KEY,
@@ -19,6 +20,7 @@ import {
   MIGRATION_ONLY_KEYS,
   RELAYED_STORAGE_KEYS,
   SIMPLE_RELAY_KEYS,
+  readAiBalancePage,
   readBallCursor,
   readBuiltInCompanionFromChange,
   readBuiltInCompanionInitial,
@@ -249,3 +251,26 @@ function validPet() {
     importedAt: 1,
   };
 }
+
+describe('readAiBalancePage', () => {
+  it('defaults to showing nothing', () => {
+    expect(readAiBalancePage({})).toEqual({ text: '', low: false });
+    expect(readAiBalancePage({ [AI_BALANCE_PAGE_STORAGE_KEY]: 'nope' })).toEqual({
+      text: '',
+      low: false,
+    });
+  });
+
+  it('relays the precomputed string and the low flag', () => {
+    expect(
+      readAiBalancePage({ [AI_BALANCE_PAGE_STORAGE_KEY]: { text: '12.35 美元💵', low: true } }),
+    ).toEqual({ text: '12.35 美元💵', low: true });
+  });
+
+  it('bounds the text, since it ends up in the page DOM', () => {
+    const long = 'x'.repeat(200);
+    expect(readAiBalancePage({ [AI_BALANCE_PAGE_STORAGE_KEY]: { text: long } }).text).toHaveLength(
+      40,
+    );
+  });
+});

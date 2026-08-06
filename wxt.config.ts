@@ -26,13 +26,18 @@ export default defineConfig({
   },
   manifest: {
     name: 'Octo 聊天增强',
-    description: '增强 Octo 网页聊天：消息美化、舒适输入框、输入框宠物、GitHub 快捷入口和本地桌面宠物。',
+    description: '增强 Octo 网页聊天：消息美化、舒适输入框、输入框宠物、AI 余额、GitHub 快捷入口和本地桌面宠物。',
     minimum_chrome_version: '114',
     action: {
       default_title: '打开 Octo 聊天增强设置',
     },
-    permissions: ['storage', 'unlimitedStorage'],
+    permissions: ['storage', 'unlimitedStorage', 'alarms'],
     host_permissions: [...OCTO_MATCHES],
+    // The AI balance endpoint is whatever gateway the user happens to use, so it
+    // cannot be listed up front. Declaring the wildcard as *optional* grants
+    // nothing by itself: the Side Panel asks for the single origin the user just
+    // typed, and Chrome shows that origin in the prompt.
+    optional_host_permissions: ['https://*/*'],
     web_accessible_resources: [
       {
         // MAIN-world scripts plus assets referenced from the page context.
