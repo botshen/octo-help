@@ -421,7 +421,7 @@ export function AiBalanceCard({
   };
 
   const summary = !config
-    ? '还没有配置，展开填一个 API Key'
+    ? '还没有配置，展开填网关地址和 API Key'
     : !config.enabled
       ? '已关闭'
       : cache?.error
