@@ -1,3 +1,4 @@
+import { defineUnlistedScript } from '#imports';
 import {
   KICK_GLOBAL_KEY,
   KICK_READY_EVENT,

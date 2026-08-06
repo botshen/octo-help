@@ -4,6 +4,15 @@ import { OCTO_MATCHES } from './utils/octoRecall';
 // See https://wxt.dev/api/config.html
 export default defineConfig({
   modules: ['@wxt-dev/module-react'],
+  // Auto-imports are off on purpose. Every module here already imports
+  // explicitly, so scanning utils/ only produced "Duplicated imports" warnings
+  // for the deliberate name pairs (octoFullscreenKickLazy vs
+  // octoFullscreenKickPixi, octoBeautify vs octoThemeCatalog) — and it resolved
+  // those globals to the *pixi* implementation, so a single forgotten import in
+  // main-world code would have silently pulled ~540 KB of WebGL engine into the
+  // always-injected bundle, right past the eslint no-restricted-imports guard.
+  // WXT APIs are imported from '#imports' instead.
+  imports: false,
   dev: {
     server: {
       port: 17321,

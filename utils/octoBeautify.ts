@@ -7,15 +7,9 @@ import {
   DEFAULT_KICK_STYLE,
   DEFAULT_THEME,
   GLOBAL_THEMES,
-  KICK_STYLES,
-  THEMES,
   kickStyleById,
   themeById,
   type GlobalThemeDef,
-  type KickStyleDef,
-  type ThemeCategory,
-  type ThemeDef,
-  type ThemePresentation,
 } from './octoThemeCatalog';
 import {
   EMPTY_SYNC_SCOPE,
@@ -31,21 +25,9 @@ import {
   setFullscreenKickStyle,
 } from './octoFullscreenKickLazy';
 
-// Re-exported for existing consumers. New code should import the catalog
-// directly (`@/utils/octoThemeCatalog`) so it does not pull in this engine.
-export {
-  DEFAULT_GLOBAL_THEME,
-  DEFAULT_KICK_STYLE,
-  DEFAULT_THEME,
-  GLOBAL_THEMES,
-  KICK_STYLES,
-  THEMES,
-  type GlobalThemeDef,
-  type KickStyleDef,
-  type ThemeCategory,
-  type ThemeDef,
-  type ThemePresentation,
-};
+// No catalog re-exports here on purpose: importing this module drags in the
+// beautify stylesheet and the whole engine, so theme/style constants must be
+// taken straight from `@/utils/octoThemeCatalog`.
 
 // Message beautify + theme (skin) engine, ported from an9xyz/octo-script
 // (Tampermonkey userscript) into our extension. Pure CSS/DOM overrides in the

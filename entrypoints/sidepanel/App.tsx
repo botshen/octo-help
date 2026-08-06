@@ -1,3 +1,4 @@
+import { browser } from '#imports';
 import {
   useEffect,
   useCallback,

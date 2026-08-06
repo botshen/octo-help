@@ -57,6 +57,7 @@
 - **内容脚本不得 import 美化引擎**。它只需转发设置；曾因为 import 三个默认主题常量而把整个 pixi 拖进去（231 KB 死代码）。默认值请从 `octoThemeCatalog` 取。
 - **sync 的代价不得随会话长度增长**。消息相关的 pass 靠 `octoSyncScope` 限定在变动子树内；clamp 的测高读写分离并用 `WeakSet` 记忆结果。实测：3000 条消息下单条新消息的处理从 9.1 ms 降到 1.0 ms。
 - **不要用 `ResizeObserver` 观察消息元素**。它对目标持强引用，会把被回收的上千条消息钉在内存里。clamp 的失效信号用的是 document 级 `load` 捕获 + window `resize`。
+- **WXT 自动导入是关的**（`wxt.config.ts` 的 `imports: false`），WXT API 从 `#imports` 显式导入。自动导入扫描 `utils/` 时，会把 `setFullscreenKick*` 这组同名导出解析到 **pixi 实现**而不是懒加载门面：一旦 main-world 侧漏写一行 import，540 KB 引擎就会静默进入常驻包，而且绕过上面那条 eslint 守卫。
 
 ## 安全模型
 

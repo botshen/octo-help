@@ -1,3 +1,5 @@
+import { browser, defineBackground } from '#imports';
+
 export default defineBackground(() => {
   // Clicking the extension action opens the global Chrome side panel.
   if (browser.sidePanel?.setPanelBehavior) {

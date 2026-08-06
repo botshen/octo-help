@@ -1,3 +1,4 @@
+import { defineUnlistedScript } from '#imports';
 import {
   MESSAGE_SOURCE,
   MESSAGE_TYPE,

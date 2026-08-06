@@ -1,3 +1,4 @@
+import { browser, defineContentScript, injectScript } from '#imports';
 import {
   COMPAT_REPORT_STORAGE_KEY,
   DESKTOP_PET_POSITION_STORAGE_KEY,
