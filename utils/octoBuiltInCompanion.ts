@@ -261,15 +261,25 @@ export function applyBuiltInCompanion(id: BuiltInCompanionId | null): void {
   root.dataset.active = 'false';
   root.setAttribute('aria-label', companion.label);
   root.style.setProperty('--octo-companion-duration', `${companion.duration}s`);
-  root.innerHTML = `
-    <div class="octo-companion-track" aria-hidden="true">
-      <div class="octo-companion-parade">
-        <span class="octo-companion-pet">${companion.emoji}</span>
-        <span class="octo-companion-pet">${companion.emoji}</span>
-        <span class="octo-companion-pet">${companion.emoji}</span>
-      </div>
-    </div>
-  `;
+
+  // Built with DOM APIs rather than innerHTML. The emoji is a built-in constant
+  // today, but the moment a custom companion glyph becomes configurable an
+  // innerHTML template here turns into a script-injection sink — and this runs in
+  // the page's MAIN world, so it would execute with the page's privileges.
+  root.replaceChildren();
+  const track = document.createElement('div');
+  track.className = 'octo-companion-track';
+  track.setAttribute('aria-hidden', 'true');
+  const parade = document.createElement('div');
+  parade.className = 'octo-companion-parade';
+  for (let i = 0; i < 3; i += 1) {
+    const pet = document.createElement('span');
+    pet.className = 'octo-companion-pet';
+    pet.textContent = companion.emoji;
+    parade.appendChild(pet);
+  }
+  track.appendChild(parade);
+  root.appendChild(track);
   stopTracking();
   mutationObserver = new MutationObserver(schedulePosition);
   mutationObserver.observe(document.body || document.documentElement, {

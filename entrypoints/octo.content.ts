@@ -381,6 +381,12 @@ export default defineContentScript({
       // player watermark is switched on. Injecting once per page is enough —
       // the script registers a page global that survives later toggles.
       if (data.type === MESSAGE_TYPE.requestKickScript) {
+        // MAIN world shares a realm with the page, so this request could have
+        // been forged by any page script. Gate it on the setting the effect
+        // actually needs: without a watermark selected there is nothing to
+        // render, and honouring the request would just be a way to make us
+        // fetch and parse ~540 KB of WebGL engine on demand.
+        if (currentPlayerWatermark === 'none') return;
         if (kickScriptInjected) return;
         kickScriptInjected = true;
         void injectScript('/octo-kick-world.js', { keepInDom: true }).catch(() => {
