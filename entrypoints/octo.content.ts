@@ -1,6 +1,5 @@
 import { browser, defineContentScript, injectScript } from '#imports';
 import {
-  AI_BALANCE_PAGE_STORAGE_KEY,
   COMPAT_REPORT_STORAGE_KEY,
   DESKTOP_PET_POSITION_STORAGE_KEY,
   MASTER_STORAGE_KEY,
@@ -8,7 +7,6 @@ import {
   MESSAGE_TYPE,
   OCTO_MATCHES,
   PLAYER_WATERMARK_STORAGE_KEY,
-  type AiBalanceMessage,
   type CompatReportMessage,
   type DesktopPetMessage,
   type DesktopPetPositionMessage,
@@ -34,7 +32,6 @@ import {
   DESKTOP_PET_KEYS,
   RELAYED_STORAGE_KEYS,
   SIMPLE_RELAY_KEYS,
-  readAiBalancePage,
   readBallCursor,
   readBeautifyEnabled,
   readBuiltInCompanionFromChange,
@@ -135,21 +132,6 @@ export default defineContentScript({
       } satisfies Omit<DesktopPetMessage, 'source'>);
     }
 
-    /**
-     * AI balance: only the formatted string and the low flag are sent.
-     *
-     * The endpoint and the API key live in a storage key this script does not
-     * even read — the MAIN world shares a realm with Octo, so anything relayed
-     * here is effectively public. The background precomputes the display state.
-     */
-    function postAiBalance(state = aiBalancePage) {
-      postToPage({
-        type: MESSAGE_TYPE.aiBalance,
-        text: state.text,
-        low: state.low,
-      } satisfies Omit<AiBalanceMessage, 'source'>);
-    }
-
     // ---- current state -----------------------------------------------------
 
     const stored = (await browser.storage.local.get([
@@ -171,7 +153,6 @@ export default defineContentScript({
     let desktopPetPlacement = readDesktopPetPlacement(stored);
     let builtInCompanion = readBuiltInCompanionInitial(stored);
     let desktopPetEnabled = readDesktopPetEnabledInitial(stored);
-    let aiBalancePage = readAiBalancePage(stored);
 
     // MAIN world ignores settings while suspended. Keep the latest values here
     // and replay them after the master switch reboots the page-side engines.
@@ -189,7 +170,6 @@ export default defineContentScript({
       postToggle(currentEnabled);
       postComposerEnhancement(composerEnhancementEnabled);
       postDesktopPet();
-      postAiBalance();
     };
 
     // Push current state once the injected script is listening. It registers
@@ -231,7 +211,6 @@ export default defineContentScript({
       [QQ_SELF_LEFT_STORAGE_KEY]: (v) => postQQSelfLeft((currentQQSelfLeft = readQQSelfLeft(v))),
       [COMPOSER_ENHANCEMENT_STORAGE_KEY]: (v) =>
         postComposerEnhancement((composerEnhancementEnabled = readComposerEnhancement(v))),
-      [AI_BALANCE_PAGE_STORAGE_KEY]: (v) => postAiBalance((aiBalancePage = readAiBalancePage(v))),
     };
 
     /**

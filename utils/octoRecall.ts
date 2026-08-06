@@ -119,139 +119,8 @@ export interface DesktopPetPosition {
   y: number;
 }
 
-/**
- * storage.local keys for the AI balance widget.
- *
- * Deliberately two keys: the *config* is user input (endpoint + API key) and
- * only the Side Panel writes it, while the *cache* is the last fetch result and
- * only the background writes it. Splitting them means a refresh never rewrites
- * the secret, and the panel can render a value instantly without waiting for a
- * network round trip.
- */
-export const AI_BALANCE_CONFIG_STORAGE_KEY = 'octoAiBalanceConfig';
-export const AI_BALANCE_CACHE_STORAGE_KEY = 'octoAiBalanceCache';
-
-/**
- * Page-facing projection of the two keys above, written by the background.
- *
- * A third key rather than letting the content script derive it: the content
- * script would then have to read the config — i.e. the API key — to decide what
- * to show, and it would need the formatting code, which its 15 KB budget cannot
- * afford. Precomputing here means the always-injected script relays an opaque
- * string and never touches the secret.
- */
-export const AI_BALANCE_PAGE_STORAGE_KEY = 'octoAiBalancePage';
-
-/** Everything the Octo page may know about the balance. */
-export interface AiBalancePageState {
-  /** Empty means "show nothing". */
-  text: string;
-  low: boolean;
-}
-
-/**
- * How to reach a balance endpoint and where the number sits in its response.
- *
- * Note what is NOT here: a user-supplied extractor function. Reading the value
- * is a declarative `path` instead, because evaluating pasted JS would need
- * `unsafe-eval` (impossible for MV3 extension pages) or a sandbox frame, and
- * would hand arbitrary code both the extension's cross-origin fetch ability and
- * the stored API key. A path covers every balance API shape we have seen.
- */
-export interface AiBalanceConfig {
-  /**
-   * Feature switch. Off keeps the configuration but stops the polling, the badge
-   * and the page pill — so turning it back on does not mean re-typing the key.
-   */
-  enabled: boolean;
-  /** Preset the user picked, or 'custom'. Kept so the panel can re-render the form. */
-  presetId: string;
-  /** Absolute https URL, already carrying the key when the API expects it in the query. */
-  url: string;
-  method: 'GET' | 'POST';
-  /** Extra request headers, e.g. `Authorization: Bearer …`. */
-  headers: Record<string, string>;
-  /** Dotted path into the JSON response, e.g. `data.remain_quota_usd`. */
-  path: string;
-  /**
-   * Where the total quota sits, so the icon badge can show a percentage.
-   *
-   * Empty means auto-detect: most gateways report either a total or a "used"
-   * figure next to the remainder, and guessing from a short candidate list beats
-   * asking every user to go find the field name. Percentage is simply skipped
-   * when neither is present — four digits do not fit in a toolbar badge, but a
-   * wrong percentage would be worse than none.
-   */
-  totalPath: string;
-  /** Displayed after the number, e.g. `美元💵`. */
-  unit: string;
-  /** Applied to the raw value, for APIs that report cents or token quota. */
-  multiplier: number;
-  decimals: number;
-  refreshMinutes: number;
-  /**
-   * Show the remaining percentage on the toolbar icon instead of the amount.
-   * Only possible when a total is known; falls back to the amount otherwise.
-   */
-  badgePercent: boolean;
-  /** Below this the badge turns red. `null` disables the warning. */
-  lowThreshold: number | null;
-  /** Also show the balance next to the Octo composer. */
-  showInPage: boolean;
-}
-
-/** Last fetch result. A failure keeps the previous value so the panel can still show it. */
-export interface AiBalanceCache {
-  value: number | null;
-  /** Total quota, when the API reports one (or one could be derived). */
-  total: number | null;
-  /** 0-100, or null when no total is known. */
-  percent: number | null;
-  unit: string;
-  /** Epoch ms of the last *successful* fetch. */
-  fetchedAt: number;
-  /** Human-readable reason of the last failure, '' when the last fetch worked. */
-  error: string;
-  erroredAt: number;
-}
-
 /** window.postMessage envelope source, so we ignore unrelated messages. */
 export const MESSAGE_SOURCE = 'octo-recall';
-
-/**
- * runtime.sendMessage types for Side Panel -> background.
- *
- * The fetch lives in the background on purpose: the API key must never reach the
- * Octo tab (MAIN world shares a realm with the page), and only the background
- * can keep refreshing on an alarm after the panel is closed.
- */
-export const RUNTIME_MESSAGE_TYPE = {
-  aiBalanceRefresh: 'octoAiBalanceRefresh',
-  aiBalanceTest: 'octoAiBalanceTest',
-} as const;
-
-export interface AiBalanceRefreshRequest {
-  type: typeof RUNTIME_MESSAGE_TYPE.aiBalanceRefresh;
-}
-
-/** Try a config without persisting it, so 「测试」 cannot corrupt a working setup. */
-export interface AiBalanceTestRequest {
-  type: typeof RUNTIME_MESSAGE_TYPE.aiBalanceTest;
-  config: AiBalanceConfig;
-}
-
-export type RuntimeRequest = AiBalanceRefreshRequest | AiBalanceTestRequest;
-
-/** Result of a fetch attempt, shared by the refresh and test paths. */
-export interface AiBalanceProbeResult {
-  ok: boolean;
-  value: number | null;
-  total: number | null;
-  percent: number | null;
-  unit: string;
-  error: string;
-  fetchedAt: number;
-}
 
 /** Message types sent from content script -> injected main-world script. */
 export const MESSAGE_TYPE = {
@@ -267,7 +136,6 @@ export const MESSAGE_TYPE = {
   composerEnhancement: 'composerEnhancement',
   desktopPet: 'desktopPet',
   desktopPetPosition: 'desktopPetPosition',
-  aiBalance: 'aiBalance',
   requestKickScript: 'requestKickScript',
   compatReport: 'compatReport',
 } as const;
@@ -349,22 +217,6 @@ export interface ComposerEnhancementMessage {
   enabled: boolean;
 }
 
-/**
- * AI balance shown next to the composer.
- *
- * Only the already-formatted string crosses into the page — never the URL, the
- * headers or the key. The MAIN world runs with the page's privileges, so
- * anything sent here is effectively public to Octo's own scripts.
- */
-export interface AiBalanceMessage {
-  source: typeof MESSAGE_SOURCE;
-  type: typeof MESSAGE_TYPE.aiBalance;
-  /** Empty string means "show nothing" (disabled, unconfigured or never fetched). */
-  text: string;
-  /** Below the configured threshold, so the pill can warn. */
-  low: boolean;
-}
-
 /** Drag result sent from the MAIN world back to the content script for storage. */
 export interface DesktopPetPositionMessage {
   source: typeof MESSAGE_SOURCE;
@@ -425,7 +277,6 @@ export type OctoMessage =
   | BallCursorMessage
   | QQSelfLeftMessage
   | ComposerEnhancementMessage
-  | AiBalanceMessage
   | DesktopPetMessage
   | DesktopPetPositionMessage
   | RequestKickScriptMessage

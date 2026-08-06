@@ -21,7 +21,6 @@ import {
   teardownComposerEnhancement,
 } from '@/utils/octoComposerEnhancer';
 import { applyDesktopPetState, teardownDesktopPet } from '@/utils/octoPetRenderer';
-import { setAiBalancePill, teardownAiBalancePill } from '@/utils/octoAiBalancePill';
 import { getMessageWrapFromItem } from '@/utils/octoMessageFiber';
 import { startOctoPetSpeech } from '@/utils/octoPetSpeech';
 import { startOctoGithubLinks } from '@/utils/octoGithubLink';
@@ -596,11 +595,6 @@ export default defineUnlistedScript(() => {
       stop: teardownDesktopPet,
     },
     {
-      // Started by its setting message, not by the master switch.
-      id: 'aiBalance',
-      stop: teardownAiBalancePill,
-    },
-    {
       id: 'petSpeech',
       start: () => {
         stopPetSpeech ??= startOctoPetSpeech();
@@ -702,8 +696,6 @@ export default defineUnlistedScript(() => {
     [MESSAGE_TYPE.qqSelfLeft]: (m) => setQQSelfLeft(!!m.enabled),
     [MESSAGE_TYPE.composerEnhancement]: (m) => setComposerEnhancement(!!m.enabled),
     [MESSAGE_TYPE.desktopPet]: (m) => applyDesktopPetState(m),
-    // Empty text tears the pill down, which is how "off" arrives here.
-    [MESSAGE_TYPE.aiBalance]: (m) => setAiBalancePill(m.text, m.low === true),
   };
 
   window.addEventListener('message', (event: MessageEvent) => {

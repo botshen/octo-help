@@ -1,6 +1,6 @@
 {
   "name": "octo-chat-enhancer",
-  "description": "增强 Octo 网页聊天：消息美化、舒适输入框、输入框宠物、AI 余额、GitHub 快捷入口和本地桌面宠物。",
+  "description": "把撤回的消息读回来，顺手换套好看的皮肤：撤回还原、消息美化与全站换肤、舒适输入框、GitHub 快捷跳转和桌面宠物。",
   "private": true,
   "version": "0.3.0",
   "packageManager": "pnpm@10.11.0",

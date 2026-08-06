@@ -44,7 +44,6 @@ import {
   type ThemeDef,
 } from '@/utils/octoThemeCatalog';
 import { isBuiltInCompanionId, isStoredDesktopPet } from '@/utils/octoPetState';
-import { AiBalanceBanner, AiBalanceCard } from './AiBalanceCard';
 import { FeatureSection } from './FeatureSection';
 import './App.css';
 
@@ -678,19 +677,12 @@ function App() {
         </div>
       </header>
 
-      {/* Hidden while paused: the background stops polling then, so the number
-          would be a stale figure with nothing saying so. */}
-      {masterEnabled && <AiBalanceBanner />}
-
       {!masterEnabled && (
         <section className="master-paused" role="status">
           <span className="master-paused-icon" aria-hidden="true">⏸</span>
           <div>
             <strong>全部增强已暂停</strong>
-            <p>
-              页面已还原成没有安装扩展的样子，余额查询和图标角标也一并停止。
-              下面的设置可以照常修改，会在重新启用后生效。
-            </p>
+            <p>页面已还原成没有安装扩展的样子。下面的设置可以照常修改，会在重新启用后生效。</p>
           </div>
         </section>
       )}
@@ -710,12 +702,6 @@ function App() {
       )}
 
       <div className={`settings-stack${masterEnabled ? '' : ' is-paused'}`}>
-        <AiBalanceCard
-          disabled={loading}
-          open={openFeature === 'balance'}
-          onToggleOpen={() => toggleFeature('balance')}
-        />
-
         <FeatureSection
           icon="◐"
           title="消息美化与主题"
