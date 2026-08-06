@@ -43,7 +43,7 @@ import {
   type ThemeDef,
 } from '@/utils/octoThemeCatalog';
 import { isBuiltInCompanionId, isStoredDesktopPet } from '@/utils/octoPetState';
-import { AiBalanceCard } from './AiBalanceCard';
+import { AiBalanceBanner, AiBalanceCard } from './AiBalanceCard';
 import './App.css';
 
 const PLAYER_WATERMARKS: Array<{ id: PlayerWatermarkId; label: string; icon: string }> = [
@@ -623,6 +623,10 @@ function App() {
         </div>
       </header>
 
+      {/* The balance is the one number people open this panel to check, so it sits
+          above the switches rather than inside a card. */}
+      <AiBalanceBanner />
+
       <section className={`master-card${masterEnabled ? ' is-enabled' : ''}`}>
         <div className="master-status" aria-hidden="true"><span /></div>
         <div className="master-copy">
@@ -658,6 +662,8 @@ function App() {
       )}
 
       <div className="settings-stack">
+        <AiBalanceCard disabled={loading} />
+
         <section className="settings-card" aria-labelledby="appearance-title">
           <header className="section-heading">
             <span className="section-icon" aria-hidden="true">◐</span>
@@ -905,8 +911,6 @@ function App() {
           </div>
           {petError && <p className="pet-error" role="alert">{petError}</p>}
         </section>
-
-        <AiBalanceCard disabled={loading} />
 
         <section className="settings-card" aria-labelledby="message-title">
           <header className="section-heading">

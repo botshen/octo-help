@@ -14,7 +14,9 @@ import {
   BALANCE_MAX_RESPONSE_BYTES,
   describeAiBalanceForPage,
   extractBalance,
+  formatBalance,
   formatBalanceBadge,
+  formatPercent,
   isBalanceLow,
   isBalanceStale,
   parseStoredAiBalanceCache,
@@ -66,6 +68,8 @@ export default defineBackground(() => {
     const fail = (error: string): AiBalanceProbeResult => ({
       ok: false,
       value: null,
+      total: null,
+      percent: null,
       unit: config.unit,
       error,
       fetchedAt,
@@ -113,13 +117,21 @@ export default defineBackground(() => {
       );
     }
 
-    const extracted = extractBalance(parsed, config.path, config.multiplier);
+    const extracted = extractBalance(parsed, config.path, config.multiplier, config.totalPath);
     if (!extracted.ok) {
       // An HTTP error code is worth naming, but the API's own message (which
       // extractBalance prefers) is usually the actionable part.
       return fail(response.ok ? extracted.error : `HTTP ${response.status}：${extracted.error}`);
     }
-    return { ok: true, value: extracted.value, unit: config.unit, error: '', fetchedAt };
+    return {
+      ok: true,
+      value: extracted.value,
+      total: extracted.total,
+      percent: extracted.percent,
+      unit: config.unit,
+      error: '',
+      fetchedAt,
+    };
   }
 
   /**
@@ -152,15 +164,22 @@ export default defineBackground(() => {
       return;
     }
     const low = isBalanceLow(value, config.lowThreshold);
-    await browser.action.setBadgeText({ text: formatBalanceBadge(value) }).catch(() => {});
+    // Percentage when we know the total: `1234.56` cannot be shown in four
+    // glyphs, `62%` can. The exact figure goes in the tooltip below.
+    await browser.action
+      .setBadgeText({ text: formatBalanceBadge(value, cache?.percent ?? null) })
+      .catch(() => {});
     await browser.action
       .setBadgeBackgroundColor({ color: low ? '#e5484d' : '#6f5ee8' })
       .catch(() => {});
     // The badge is four glyphs at best, so the unit and the warning live in the
     // tooltip instead of being truncated into meaninglessness.
+    const percentSuffix = cache?.percent == null ? '' : ` · ${formatPercent(cache.percent)}`;
     await browser.action
       .setTitle({
-        title: `AI 余额 ${value}${config.unit ? ` ${config.unit}` : ''}${low ? '（偏低）' : ''}`,
+        title: `AI 余额 ${formatBalance(value, config.unit, config.decimals)}${percentSuffix}${
+          low ? '（偏低）' : ''
+        }`,
       })
       .catch(() => {});
   }
@@ -181,9 +200,19 @@ export default defineBackground(() => {
     // A failed refresh keeps the last known value: a transient network blip
     // should not blank out a number the user still wants to see.
     const next: AiBalanceCache = result.ok
-      ? { value: result.value, unit: result.unit, fetchedAt: result.fetchedAt, error: '', erroredAt: 0 }
+      ? {
+          value: result.value,
+          total: result.total,
+          percent: result.percent,
+          unit: result.unit,
+          fetchedAt: result.fetchedAt,
+          error: '',
+          erroredAt: 0,
+        }
       : {
           value: previous?.value ?? null,
+          total: previous?.total ?? null,
+          percent: previous?.percent ?? null,
           unit: previous?.unit ?? config.unit,
           fetchedAt: previous?.fetchedAt ?? 0,
           error: result.error,
@@ -263,6 +292,8 @@ export default defineBackground(() => {
         sendResponse({
           ok: false,
           value: null,
+          total: null,
+          percent: null,
           unit: '',
           error: '配置不完整，请检查地址和取值路径',
           fetchedAt: Date.now(),

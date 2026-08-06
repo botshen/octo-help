@@ -7,7 +7,7 @@
 - **Bot 资料卡「全息卡牌」+ 开卡抽卡** —— 把 Bot 资料卡改成 synthwave 落日 banner + 悬浮圆头像 + 信息合并大框 + 创建者置底署名，随鼠标 3D 倾斜；每次打开还会随机抽一个稀有度（宝可梦式档位 N/R/SR/SSR/UR，越稀越少），据此渲染金箔全息卡框、稀有度角标与高档辉光脉动，SR 及以上播放全屏揭晓特效。
 - **全站主题 + 世界杯特效** —— 可切换导航、会话和输入区配色，提供足球射门动画与梅西、姆巴佩水印。
 - **输入框宠物** —— 内置蚂蚁、蜗牛、巫师和僵尸四种巡游宠物，输入或收到新消息时在输入框上沿活动；也可导入 `.zip` / `.codex-pet.zip` 自定义宠物。
-- **AI 余额** —— 填一个大模型网关的 API Key（内置 LLM Gateway 预设，也支持自定义接口 / 从 curl 粘贴），在设置页和扩展图标角标上看剩余额度，可选在 Octo 输入框旁显示；余额低于阈值时角标转红。
+- **AI 余额** —— 填一个大模型网关的 API Key（内置 LLM Gateway 预设，也支持自定义接口 / 从 curl 粘贴）：余额显示在侧边栏顶部（含剩余百分比进度条），扩展图标角标显示**剩余百分比**，可选在 Octo 输入框旁显示；余额低于阈值时转红。
 - **舒适输入框** —— 默认提供三行编辑空间，将工具栏移到右下角，同时保留 Octo 原生的附件、快捷键和全屏展开能力。
 - **GitHub 快捷入口** —— 自动识别消息中的仓库、Issue、PR、Commit、Action、Release 和文件链接，在消息旁提供准确跳转；PR/Issue 编号后即使直接粘着文字也不会把文字带进 URL。
 - **新消息气泡** —— 桌宠启用时，当前页面收到他人的新消息会显示 5 秒短气泡；内容只在本地内存中处理，不持久化。
@@ -21,7 +21,7 @@
 - **开卡抽卡**：Bot 资料卡弹窗挂载时，美化引擎的 `sync()` 按加权概率 `Math.random()` 抽一个稀有度，写到 `.wk-modal-shell` / `.wk-bot-detail-content` 的 `data-octo-rarity` 上——卡框配色、角标文字（`content: attr(...)`）、辉光强度全部由 CSS 据此渲染。抽卡是「每个卡片实例一次」：同一弹窗重渲染沿用已抽结果，关闭重开则是新实例、重新抽。揭晓特效节点注入 `<body>`（在弹窗 React 树之外，避免被 reconcile 清掉），播完自移除。只读随机 + 自身属性写入，不改源码、不改 React 状态。
 - **桌面宠物**：Side Panel 使用 JSZip 本地校验并解压宠物包，把 manifest 与 spritesheet data URL 存入 `browser.storage.local`；内容脚本把状态转发到 MAIN world，页面脚本按 manifest 播放动作状态机，并把拖拽位置回写 storage。Codex v1 `8 × 9` 与 v2 `8 × 11` atlas 使用官方动作行和逐帧时长；无动画配置的旧 Octo 包仍按 `12 × 13` 第一行播放。
 - **输入区增强**：舒适模式只通过 scoped CSS 调整 Octo 的 `.wk-messageinput-*` 布局，不接管 Tiptap 编辑器事件；宠物输入框模式用 `ResizeObserver`、滚动监听和批量定位跟随当前会话输入框。
-- **AI 余额**：Side Panel 只写配置（接口 + 密钥），background 用 `chrome.alarms` 定时 `fetch`、把结果写入缓存并更新扩展角标。取值不执行用户粘贴的 JS（MV3 扩展页禁 `eval`，开沙箱等于把任意代码和跨域 fetch 权限绑在一起），改用声明式路径 `data.remain_quota_usd` + 倍率/单位/小数位。接口域名走 `optional_host_permissions` 运行时申请，删除配置时一并 `permissions.remove`。
+- **AI 余额**：Side Panel 只写配置（接口 + 密钥），background 用 `chrome.alarms` 定时 `fetch`、把结果写入缓存并更新扩展角标。角标显示的是**剩余百分比**而不是金额：角标实际只放得下 4 个字形，`1234.56` 放不下也不能截断（会变成谎报余额），而 `62%`／`100%` 刚好；总额优先取用户填的「总额路径」，留空则从 `total_quota*` / `hard_limit_usd` 等常见字段或「剩余 + 已用」推导，都没有就不显示百分比、回退成缩写金额。取值不执行用户粘贴的 JS（MV3 扩展页禁 `eval`，开沙箱等于把任意代码和跨域 fetch 权限绑在一起），改用声明式路径 `data.remain_quota_usd` + 倍率/单位/小数位。接口域名用 `host_permissions: ['<all_urls>']`：网关域名无法提前枚举，安装时 Chrome 会提示「读取和更改所有网站上的数据」。需要清楚的是它**没有**改变什么：内容脚本仍只在 `OCTO_MATCHES` 注入，整个插件唯一的跳域请求就是 background 对用户自己填的那一个 URL 发的余额查询。
 
 美化/换肤逻辑移植自油猴脚本 [an9xyz/octo-script](https://github.com/an9xyz/octo-script)（MIT），改为由扩展 Side Panel + `browser.storage` 驱动，去掉了原脚本页面内的 NavRail 菜单。
 
@@ -76,6 +76,7 @@ MAIN world 与页面共享同一个 realm，`window.postMessage` **不是可信�
 - 主题类参数统一过 `*ById()` 白名单，未知值回退默认而不是直接 `setAttribute`。
 - 页面上不用 `innerHTML` 拼接（MAIN world 的 innerHTML 以页面权限执行）。
 - **AI 余额的密钥只存 `storage.local`，绝不进页面**。MAIN world 与页面同 realm，凡是发到页面的东西都等于公开，所以余额只以「格式化后的字符串」下发；`fetch` 在 background 完成，且只允许 `https://`（否则密钥会明文上线）。
+- **`<all_urls>` 的代价要写清楚**。余额接口可以是任何域名，所以声明了全域 host 权限。约束是代码层面的：只有 background 发跳域请求，目标 URL 只能来自 `octoAiBalanceConfig`（经 `parseStoredAiBalanceConfig` 重新校验、仅 https）；内容脚本的 `matches` 依旧只有 Octo。
 - **不执行用户提供的取值函数**。取值是声明式路径，`readJsonPath` 只做自有属性访问并拒绝 `__proto__` / `constructor` / `prototype`。
 
 ## 兼容性自检

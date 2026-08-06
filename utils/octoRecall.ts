@@ -159,6 +159,16 @@ export interface AiBalanceConfig {
   headers: Record<string, string>;
   /** Dotted path into the JSON response, e.g. `data.remain_quota_usd`. */
   path: string;
+  /**
+   * Where the total quota sits, so the icon badge can show a percentage.
+   *
+   * Empty means auto-detect: most gateways report either a total or a "used"
+   * figure next to the remainder, and guessing from a short candidate list beats
+   * asking every user to go find the field name. Percentage is simply skipped
+   * when neither is present — four digits do not fit in a toolbar badge, but a
+   * wrong percentage would be worse than none.
+   */
+  totalPath: string;
   /** Displayed after the number, e.g. `美元💵`. */
   unit: string;
   /** Applied to the raw value, for APIs that report cents or token quota. */
@@ -174,6 +184,10 @@ export interface AiBalanceConfig {
 /** Last fetch result. A failure keeps the previous value so the panel can still show it. */
 export interface AiBalanceCache {
   value: number | null;
+  /** Total quota, when the API reports one (or one could be derived). */
+  total: number | null;
+  /** 0-100, or null when no total is known. */
+  percent: number | null;
   unit: string;
   /** Epoch ms of the last *successful* fetch. */
   fetchedAt: number;
@@ -213,6 +227,8 @@ export type RuntimeRequest = AiBalanceRefreshRequest | AiBalanceTestRequest;
 export interface AiBalanceProbeResult {
   ok: boolean;
   value: number | null;
+  total: number | null;
+  percent: number | null;
   unit: string;
   error: string;
   fetchedAt: number;

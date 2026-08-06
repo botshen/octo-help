@@ -17,9 +17,9 @@ import {
   applyPresetKey,
   findAiBalancePreset,
   formatBalance,
+  formatPercent,
   formatRelativeTime,
   isBalanceLow,
-  originPattern,
   parseCurlCommand,
   parseHeaderLines,
   parseStoredAiBalanceCache,
@@ -31,6 +31,128 @@ import {
 
 const REFRESH_CHOICES = [5, 15, 30, 60, 180, 720] as const;
 
+async function sendRuntime<T>(message: unknown): Promise<T | null> {
+  try {
+    return (await browser.runtime.sendMessage(message)) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Shared read side of the balance feature.
+ *
+ * Both the top banner and the settings card need the same two storage keys and
+ * the same refresh round trip, and the background is the only writer — so they
+ * subscribe to storage rather than passing state through App.
+ */
+export function useAiBalance() {
+  const [config, setConfig] = useState<AiBalanceConfig | null>(null);
+  const [cache, setCache] = useState<AiBalanceCache | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let mounted = true;
+    void browser.storage.local
+      .get([AI_BALANCE_CONFIG_STORAGE_KEY, AI_BALANCE_CACHE_STORAGE_KEY])
+      .then((stored) => {
+        if (!mounted) return;
+        setConfig(parseStoredAiBalanceConfig(stored[AI_BALANCE_CONFIG_STORAGE_KEY]));
+        setCache(parseStoredAiBalanceCache(stored[AI_BALANCE_CACHE_STORAGE_KEY]));
+        setLoaded(true);
+      });
+    const onChanged = (changes: Record<string, { newValue?: unknown }>) => {
+      if (AI_BALANCE_CACHE_STORAGE_KEY in changes) {
+        setCache(parseStoredAiBalanceCache(changes[AI_BALANCE_CACHE_STORAGE_KEY].newValue));
+        setNow(Date.now());
+      }
+      if (AI_BALANCE_CONFIG_STORAGE_KEY in changes) {
+        setConfig(parseStoredAiBalanceConfig(changes[AI_BALANCE_CONFIG_STORAGE_KEY].newValue));
+      }
+    };
+    browser.storage.local.onChanged.addListener(onChanged);
+    // Keep "3 分钟前更新" honest while the panel stays open.
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => {
+      mounted = false;
+      browser.storage.local.onChanged.removeListener(onChanged);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  const refresh = useCallback(async () => {
+    setBusy(true);
+    try {
+      return await sendRuntime<AiBalanceProbeResult | null>({
+        type: RUNTIME_MESSAGE_TYPE.aiBalanceRefresh,
+      });
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  const text = useMemo(() => {
+    if (!config || cache?.value == null) return '';
+    return formatBalance(cache.value, cache.unit || config.unit, config.decimals);
+  }, [cache, config]);
+
+  return {
+    config,
+    cache,
+    loaded,
+    busy,
+    now,
+    refresh,
+    text,
+    percent: cache?.percent ?? null,
+    low: isBalanceLow(cache?.value ?? null, config?.lowThreshold ?? null),
+  };
+}
+
+/**
+ * Balance strip pinned to the top of the panel.
+ *
+ * The number is why this feature exists, so it sits above the settings rather
+ * than inside one of the cards. Renders nothing until a config exists, so users
+ * who never set it up see no dead space.
+ */
+export function AiBalanceBanner() {
+  const { config, cache, text, percent, low, busy, now, refresh } = useAiBalance();
+  if (!config) return null;
+
+  return (
+    <section className={`balance-banner${low ? ' is-low' : ''}`} aria-label="AI 余额">
+      <span className="balance-banner-icon" aria-hidden="true">💰</span>
+      <div className="balance-banner-copy">
+        <strong>{text || '—'}</strong>
+        <small>
+          {cache?.error
+            ? `更新失败：${cache.error}`
+            : [formatPercent(percent), formatRelativeTime(cache?.fetchedAt ?? 0, now)]
+                .filter(Boolean)
+                .join(' · ')}
+        </small>
+        {percent != null && (
+          <span className="balance-meter" aria-hidden="true">
+            <span style={{ width: `${Math.max(2, Math.round(percent))}%` }} />
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        className="balance-refresh"
+        aria-label="刷新余额"
+        disabled={busy}
+        onClick={() => void refresh()}
+      >
+        {busy ? '…' : '↻'}
+      </button>
+    </section>
+  );
+}
+
 /** Editable mirror of AiBalanceConfig: numbers stay strings while being typed. */
 interface FormState {
   presetId: string;
@@ -39,6 +161,7 @@ interface FormState {
   method: 'GET' | 'POST';
   headersText: string;
   path: string;
+  totalPath: string;
   unit: string;
   multiplier: string;
   decimals: string;
@@ -56,6 +179,7 @@ function emptyForm(): FormState {
     method: preset.method,
     headersText: stringifyHeaders(preset.headers),
     path: preset.path,
+    totalPath: preset.totalPath,
     unit: preset.unit,
     multiplier: '1',
     decimals: '2',
@@ -76,6 +200,7 @@ function formFromConfig(config: AiBalanceConfig): FormState {
     method: config.method,
     headersText: stringifyHeaders(config.headers),
     path: config.path,
+    totalPath: config.totalPath,
     unit: config.unit,
     multiplier: String(config.multiplier),
     decimals: String(config.decimals),
@@ -98,6 +223,7 @@ function draftFromForm(form: FormState): AiBalanceConfig {
       ? { ...parseHeaderLines(form.headersText), ...filled.headers }
       : parseHeaderLines(form.headersText),
     path: form.path,
+    totalPath: form.totalPath,
     unit: form.unit,
     multiplier: Number(form.multiplier || '1'),
     decimals: Number(form.decimals || '2'),
@@ -107,23 +233,18 @@ function draftFromForm(form: FormState): AiBalanceConfig {
   };
 }
 
-async function sendRuntime<T>(message: unknown): Promise<T | null> {
-  try {
-    return (await browser.runtime.sendMessage(message)) as T;
-  } catch {
-    return null;
-  }
+function failedProbe(error: string): AiBalanceProbeResult {
+  return { ok: false, value: null, total: null, percent: null, unit: '', error, fetchedAt: Date.now() };
 }
 
 /**
- * The 「AI 余额」 card.
+ * The 「AI 余额」 settings card.
  *
- * Self-contained on purpose: it owns its two storage keys and its background
- * round trips, so App.tsx grows by one line instead of a dozen pieces of state.
+ * Self-contained on purpose: it owns its storage keys and its background round
+ * trips, so App.tsx grows by one line instead of a dozen pieces of state.
  */
 export function AiBalanceCard({ disabled }: { disabled: boolean }) {
-  const [config, setConfig] = useState<AiBalanceConfig | null>(null);
-  const [cache, setCache] = useState<AiBalanceCache | null>(null);
+  const { config, cache, loaded, percent, text, low } = useAiBalance();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editing, setEditing] = useState(false);
   const [advanced, setAdvanced] = useState(false);
@@ -133,79 +254,25 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
   const [testResult, setTestResult] = useState<AiBalanceProbeResult | null>(null);
   const [curlOpen, setCurlOpen] = useState(false);
   const [curlText, setCurlText] = useState('');
-  const [now, setNow] = useState(() => Date.now());
+  const [hydrated, setHydrated] = useState(false);
 
   const patch = useCallback(
     (changes: Partial<FormState>) => setForm((previous) => ({ ...previous, ...changes })),
     [],
   );
 
+  // Fill the form once storage has been read; an unconfigured panel opens
+  // straight into the form so the feature is not hidden behind a button.
   useEffect(() => {
-    let mounted = true;
-    void browser.storage.local
-      .get([AI_BALANCE_CONFIG_STORAGE_KEY, AI_BALANCE_CACHE_STORAGE_KEY])
-      .then((stored) => {
-        if (!mounted) return;
-        const storedConfig = parseStoredAiBalanceConfig(stored[AI_BALANCE_CONFIG_STORAGE_KEY]);
-        setConfig(storedConfig);
-        setCache(parseStoredAiBalanceCache(stored[AI_BALANCE_CACHE_STORAGE_KEY]));
-        if (storedConfig) setForm(formFromConfig(storedConfig));
-        else setEditing(true);
-      });
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  // The background writes the cache, so the card follows storage rather than
-  // only rendering what its own refresh call returned.
-  useEffect(() => {
-    const onChanged = (changes: Record<string, { newValue?: unknown }>) => {
-      if (AI_BALANCE_CACHE_STORAGE_KEY in changes) {
-        setCache(parseStoredAiBalanceCache(changes[AI_BALANCE_CACHE_STORAGE_KEY].newValue));
-        setNow(Date.now());
-      }
-      if (AI_BALANCE_CONFIG_STORAGE_KEY in changes) {
-        setConfig(parseStoredAiBalanceConfig(changes[AI_BALANCE_CONFIG_STORAGE_KEY].newValue));
-      }
-    };
-    browser.storage.local.onChanged.addListener(onChanged);
-    return () => browser.storage.local.onChanged.removeListener(onChanged);
-  }, []);
-
-  // Keep "3 分钟前更新" honest while the panel stays open.
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
-    return () => window.clearInterval(timer);
-  }, []);
+    if (!loaded || hydrated) return;
+    setHydrated(true);
+    if (config) setForm(formFromConfig(config));
+    else setEditing(true);
+  }, [config, hydrated, loaded]);
 
   const preset = findAiBalancePreset(form.presetId);
   const problemFor = (field: ConfigProblem['field']) =>
     problems.find((problem) => problem.field === field)?.message ?? '';
-
-  const balanceText = useMemo(() => {
-    if (!config || cache?.value == null) return '';
-    return formatBalance(cache.value, cache.unit || config.unit, config.decimals);
-  }, [cache, config]);
-  const low = isBalanceLow(cache?.value ?? null, config?.lowThreshold ?? null);
-
-  /**
-   * Ask for the one origin this config talks to.
-   *
-   * `optional_host_permissions` in the manifest grants nothing on its own; this
-   * prompt is where the user sees exactly which host the extension will reach,
-   * and it has to run inside the click handler to count as a user gesture.
-   */
-  const ensureOrigin = useCallback(async (url: string) => {
-    const pattern = originPattern(url);
-    if (!pattern) return false;
-    try {
-      if (await browser.permissions.contains({ origins: [pattern] })) return true;
-      return await browser.permissions.request({ origins: [pattern] });
-    } catch {
-      return false;
-    }
-  }, []);
 
   const runTest = async () => {
     setNotice('');
@@ -218,15 +285,11 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
     setProblems([]);
     setBusy(true);
     try {
-      if (!(await ensureOrigin(validated.config.url))) {
-        setNotice('需要允许访问该接口域名才能查询余额');
-        return;
-      }
       const result = await sendRuntime<AiBalanceProbeResult>({
         type: RUNTIME_MESSAGE_TYPE.aiBalanceTest,
         config: validated.config,
       });
-      setTestResult(result ?? { ok: false, value: null, unit: '', error: '后台无响应，请重开浏览器标签', fetchedAt: Date.now() });
+      setTestResult(result ?? failedProbe('后台无响应，请重新打开浏览器标签'));
     } finally {
       setBusy(false);
     }
@@ -242,12 +305,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
     setProblems([]);
     setBusy(true);
     try {
-      if (!(await ensureOrigin(validated.config.url))) {
-        setNotice('需要允许访问该接口域名才能查询余额');
-        return;
-      }
       await browser.storage.local.set({ [AI_BALANCE_CONFIG_STORAGE_KEY]: validated.config });
-      setConfig(validated.config);
       setEditing(false);
       setTestResult(null);
       // Saving is the moment the user expects a number, so refresh immediately
@@ -255,19 +313,6 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
       await sendRuntime({ type: RUNTIME_MESSAGE_TYPE.aiBalanceRefresh });
     } catch {
       setNotice('保存失败，请重试');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const refresh = async () => {
-    setBusy(true);
-    setNotice('');
-    try {
-      const result = await sendRuntime<AiBalanceProbeResult | null>({
-        type: RUNTIME_MESSAGE_TYPE.aiBalanceRefresh,
-      });
-      if (result && !result.ok) setNotice(result.error);
     } finally {
       setBusy(false);
     }
@@ -281,12 +326,6 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
         AI_BALANCE_CACHE_STORAGE_KEY,
         AI_BALANCE_PAGE_STORAGE_KEY,
       ]);
-      // Hand the host permission back: keeping cross-origin access for an
-      // endpoint the user just deleted would be access we no longer need.
-      const pattern = config ? originPattern(config.url) : null;
-      if (pattern) await browser.permissions.remove({ origins: [pattern] }).catch(() => false);
-      setConfig(null);
-      setCache(null);
       setForm(emptyForm());
       setEditing(true);
       setTestResult(null);
@@ -317,9 +356,9 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
     const next = !form.showInPage;
     patch({ showInPage: next });
     if (!config) return;
-    const nextConfig = { ...config, showInPage: next };
-    setConfig(nextConfig);
-    await browser.storage.local.set({ [AI_BALANCE_CONFIG_STORAGE_KEY]: nextConfig });
+    await browser.storage.local.set({
+      [AI_BALANCE_CONFIG_STORAGE_KEY]: { ...config, showInPage: next },
+    });
   };
 
   const choosePreset = (id: string) => {
@@ -335,6 +374,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
       method: nextPreset.method,
       headersText: stringifyHeaders(nextPreset.headers),
       path: nextPreset.path,
+      totalPath: nextPreset.totalPath,
       unit: nextPreset.unit,
     });
   };
@@ -350,23 +390,18 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
       </header>
 
       {config && !editing && (
-        <div className={`balance-readout${low ? ' is-low' : ''}`}>
-          <div className="balance-figure">
-            <strong>{balanceText || '—'}</strong>
+        <div className="config-row">
+          <div className="config-copy">
+            <span>当前额度</span>
             <small>
               {cache?.error
                 ? `更新失败：${cache.error}`
-                : formatRelativeTime(cache?.fetchedAt ?? 0, now)}
+                : [text || '还没有查到余额', formatPercent(percent)].filter(Boolean).join(' · ')}
             </small>
           </div>
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={disabled || busy}
-            onClick={refresh}
-          >
-            {busy ? '查询中…' : '刷新'}
-          </button>
+          <span className={`balance-chip${low ? ' is-low' : ''}`}>
+            {percent == null ? text || '—' : `${Math.round(percent)}%`}
+          </span>
         </div>
       )}
 
@@ -562,6 +597,20 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
                 />
                 {problemFor('path') && <small className="balance-problem">{problemFor('path')}</small>}
               </label>
+              <label className="balance-field">
+                <span>总额路径（留空自动识别，用于算百分比）</span>
+                <input
+                  type="text"
+                  spellCheck={false}
+                  placeholder="data.total_quota_usd"
+                  value={form.totalPath}
+                  disabled={disabled || busy}
+                  onChange={(event) => patch({ totalPath: event.currentTarget.value })}
+                />
+                {problemFor('totalPath') && (
+                  <small className="balance-problem">{problemFor('totalPath')}</small>
+                )}
+              </label>
               <div className="balance-field-row">
                 <label className="balance-field">
                   <span>单位</span>
@@ -597,7 +646,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
                 </label>
               </div>
               <label className="balance-field">
-                <span>低余额提醒阈值（留空关闭）</span>
+                <span>低余额提醒阈值（按金额，留空关闭）</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -609,6 +658,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
               </label>
               <p className="balance-hint">
                 不支持粘贴 JS 取值函数：扩展页面不允许执行动态代码，取值改用上面的路径。
+                扩展图标上显示的是剩余百分比（余额位数太多，角标放不下）。
               </p>
             </div>
           )}
@@ -618,7 +668,9 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
       {testResult && (
         <p className={`balance-test${testResult.ok ? ' is-ok' : ' is-error'}`} role="status">
           {testResult.ok && testResult.value != null
-            ? `测试成功：${formatBalance(testResult.value, form.unit, Number(form.decimals || '2'))}`
+            ? `测试成功：${formatBalance(testResult.value, form.unit, Number(form.decimals || '2'))}${
+                testResult.percent == null ? '' : ` · ${formatPercent(testResult.percent)}`
+              }`
             : `测试失败：${testResult.error}`}
         </p>
       )}

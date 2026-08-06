@@ -22,6 +22,8 @@ export interface AiBalancePreset {
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   path: string;
+  /** Where the *total* quota sits, when the API reports one. '' = auto-detect. */
+  totalPath: string;
   unit: string;
   keyHint: string;
 }
@@ -40,6 +42,7 @@ export const AI_BALANCE_PRESETS: readonly AiBalancePreset[] = [
     method: 'GET',
     headers: {},
     path: 'data.remain_quota_usd',
+    totalPath: '',
     unit: '美元💵',
     keyHint: 'sk-…',
   },
@@ -50,6 +53,7 @@ export const AI_BALANCE_PRESETS: readonly AiBalancePreset[] = [
     method: 'GET',
     headers: { Authorization: 'Bearer {key}' },
     path: 'hard_limit_usd',
+    totalPath: '',
     unit: '美元💵',
     keyHint: 'sk-…',
   },
@@ -72,6 +76,7 @@ export const DEFAULT_AI_BALANCE_CONFIG: AiBalanceConfig = {
   method: 'GET',
   headers: {},
   path: AI_BALANCE_PRESETS[0].path,
+  totalPath: '',
   unit: AI_BALANCE_PRESETS[0].unit,
   multiplier: 1,
   decimals: 2,
@@ -136,7 +141,7 @@ export function isSafeJsonPath(path: string): boolean {
 }
 
 export interface ConfigProblem {
-  field: 'url' | 'path' | 'headers' | 'unit' | 'refreshMinutes' | 'multiplier';
+  field: 'url' | 'path' | 'totalPath' | 'headers' | 'unit' | 'refreshMinutes' | 'multiplier';
   message: string;
 }
 
@@ -167,6 +172,12 @@ export function validateAiBalanceConfig(
     problems.push({ field: 'path', message: '取值路径只支持 a.b[0].c 这种形式' });
   }
 
+  // Empty is meaningful here: it means "auto-detect the total".
+  const totalPath = (input.totalPath ?? '').trim();
+  if (totalPath && !isSafeJsonPath(totalPath)) {
+    problems.push({ field: 'totalPath', message: '总额路径只支持 a.b[0].c 这种形式' });
+  }
+
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries(input.headers ?? {})) {
     const cleanName = name.trim();
@@ -195,6 +206,7 @@ export function validateAiBalanceConfig(
       method: input.method === 'POST' ? 'POST' : 'GET',
       headers,
       path: input.path.trim(),
+      totalPath,
       unit,
       multiplier,
       decimals: clampDecimals(input.decimals),
@@ -231,6 +243,7 @@ export function parseStoredAiBalanceConfig(raw: unknown): AiBalanceConfig | null
     method: value.method === 'POST' ? 'POST' : 'GET',
     headers,
     path: value.path,
+    totalPath: typeof value.totalPath === 'string' ? value.totalPath : '',
     unit: typeof value.unit === 'string' ? value.unit : '',
     multiplier: typeof value.multiplier === 'number' ? value.multiplier : 1,
     decimals: typeof value.decimals === 'number' ? value.decimals : 2,
@@ -247,8 +260,12 @@ export function parseStoredAiBalanceCache(raw: unknown): AiBalanceCache | null {
   const value = raw as Record<string, unknown>;
   const finiteOrZero = (input: unknown) =>
     typeof input === 'number' && Number.isFinite(input) ? input : 0;
+  const finiteOrNull = (input: unknown) =>
+    typeof input === 'number' && Number.isFinite(input) ? input : null;
   return {
-    value: typeof value.value === 'number' && Number.isFinite(value.value) ? value.value : null,
+    value: finiteOrNull(value.value),
+    total: finiteOrNull(value.total),
+    percent: finiteOrNull(value.percent),
     unit: typeof value.unit === 'string' ? value.unit : '',
     fetchedAt: finiteOrZero(value.fetchedAt),
     error: typeof value.error === 'string' ? value.error : '',
@@ -266,17 +283,6 @@ export function clampDecimals(input: unknown): number {
   const decimals = Math.round(Number(input));
   if (!Number.isFinite(decimals)) return 2;
   return Math.min(4, Math.max(0, decimals));
-}
-
-/** `https://host/*`, the narrowest pattern `permissions.request` accepts. */
-export function originPattern(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'https:') return null;
-    return `${parsed.origin}/*`;
-  } catch {
-    return null;
-  }
 }
 
 // ---- reading the response -------------------------------------------------
@@ -320,8 +326,75 @@ export function readApiMessage(source: unknown): string {
 }
 
 export type BalanceExtraction =
-  | { ok: true; value: number }
+  | { ok: true; value: number; total: number | null; percent: number | null }
   | { ok: false; error: string };
+
+/**
+ * Field names gateways use for the *total* granted quota, and for the amount
+ * already spent (total = remaining + used).
+ *
+ * A candidate list rather than a required setting: the percentage is a nicety,
+ * and demanding that every user go read their gateway's JSON to get it would
+ * make the common case worse. An explicit `totalPath` always wins.
+ */
+const TOTAL_CANDIDATES = [
+  'data.total_quota_usd',
+  'data.total_quota',
+  'data.quota_usd',
+  'data.quota',
+  'total_quota_usd',
+  'total_quota',
+  'hard_limit_usd',
+  'total_granted',
+] as const;
+
+const USED_CANDIDATES = [
+  'data.used_quota_usd',
+  'data.used_quota',
+  'used_quota_usd',
+  'used_quota',
+  'total_usage',
+  'total_used',
+] as const;
+
+function readNumber(response: unknown, path: string): number | null {
+  const raw = readJsonPath(response, path);
+  const value = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Total quota behind a balance, either read straight from the response or
+ * reconstructed as remaining + used.
+ */
+export function findTotalQuota(
+  response: unknown,
+  remaining: number,
+  totalPath: string,
+  multiplier = 1,
+): number | null {
+  if (totalPath) {
+    const explicit = readNumber(response, totalPath);
+    return explicit == null ? null : explicit * multiplier;
+  }
+  for (const candidate of TOTAL_CANDIDATES) {
+    const total = readNumber(response, candidate);
+    if (total != null && total > 0) return total * multiplier;
+  }
+  for (const candidate of USED_CANDIDATES) {
+    const used = readNumber(response, candidate);
+    // `used` may legitimately be 0 on a fresh key, so 0 counts as found.
+    if (used != null && used >= 0) return remaining + used * multiplier;
+  }
+  return null;
+}
+
+/** Remaining share of the total, 0-100, or null when there is no usable total. */
+export function toPercent(remaining: number, total: number | null): number | null {
+  if (total == null || !(total > 0)) return null;
+  // Clamped: a gateway that reports a stale total can otherwise produce 120%.
+  return Math.min(100, Math.max(0, (remaining / total) * 100));
+}
 
 /**
  * Pull the balance out of a parsed response.
@@ -335,11 +408,14 @@ export function extractBalance(
   response: unknown,
   path: string,
   multiplier = 1,
+  totalPath = '',
 ): BalanceExtraction {
   const raw = readJsonPath(response, path);
   const value = typeof raw === 'string' && raw.trim() !== '' ? Number(raw) : raw;
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return { ok: true, value: value * multiplier };
+    const remaining = value * multiplier;
+    const total = findTotalQuota(response, remaining, totalPath, multiplier);
+    return { ok: true, value: remaining, total, percent: toPercent(remaining, total) };
   }
   const apiMessage = readApiMessage(response);
   if (apiMessage) return { ok: false, error: apiMessage };
@@ -365,13 +441,27 @@ export function formatBalance(value: number, unit: string, decimals: number): st
   return unit ? `${amount} ${unit}` : amount;
 }
 
-/** Short badge text, since the toolbar badge only fits about four glyphs. */
-export function formatBalanceBadge(value: number): string {
+/**
+ * Toolbar badge text.
+ *
+ * The badge realistically fits four glyphs, and a balance like `1234.56` cannot
+ * be shown there without lying about the amount. A remaining *percentage* fits
+ * exactly (`7%`…`100%`) and is the more useful signal anyway; the exact figure
+ * lives in the tooltip, the panel header and (optionally) the composer pill.
+ * Without a known total we fall back to an abbreviated number.
+ */
+export function formatBalanceBadge(value: number, percent: number | null = null): string {
+  if (percent != null) return `${Math.round(percent)}%`;
   const absolute = Math.abs(value);
   if (absolute >= 1_000) return `${Math.round(value / 1_000)}k`;
   if (absolute >= 100) return String(Math.round(value));
   if (absolute >= 10) return value.toFixed(1);
   return value.toFixed(2).slice(0, 4);
+}
+
+/** `剩余 62%`, or '' when no total is known. */
+export function formatPercent(percent: number | null): string {
+  return percent == null ? '' : `剩余 ${Math.round(percent)}%`;
 }
 
 export function isBalanceLow(value: number | null, threshold: number | null): boolean {

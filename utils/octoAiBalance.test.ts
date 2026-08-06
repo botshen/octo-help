@@ -10,17 +10,18 @@ import {
   formatBalance,
   formatBalanceBadge,
   formatBalanceValue,
+  formatPercent,
   formatRelativeTime,
   isBalanceLow,
   isBalanceStale,
   maskSecret,
-  originPattern,
   parseCurlCommand,
   parseHeaderLines,
   parseJsonPath,
   parseStoredAiBalanceConfig,
   readJsonPath,
   stringifyHeaders,
+  toPercent,
   validateAiBalanceConfig,
 } from './octoAiBalance';
 import type { AiBalanceConfig } from './octoRecall';
@@ -30,6 +31,8 @@ const GATEWAY_OK = {
   success: true,
   data: { remain_quota_usd: 12.3456, used_quota_usd: 1.2 },
 };
+/** Same, without any total/used field to derive a percentage from. */
+const GATEWAY_NO_TOTAL = { success: true, data: { remain_quota_usd: 12.3456 } };
 /** Same endpoint with a dead key: HTTP 200, no number, Chinese reason. */
 const GATEWAY_REJECTED = { message: '无效的令牌', success: false };
 
@@ -43,7 +46,7 @@ function config(overrides: Partial<AiBalanceConfig> = {}): AiBalanceConfig {
 
 describe('extractBalance', () => {
   it('reads the balance the gateway actually returns', () => {
-    expect(extractBalance(GATEWAY_OK, 'data.remain_quota_usd')).toEqual({
+    expect(extractBalance(GATEWAY_OK, 'data.remain_quota_usd')).toMatchObject({
       ok: true,
       value: 12.3456,
     });
@@ -73,15 +76,26 @@ describe('extractBalance', () => {
   });
 
   it('accepts numeric strings, which some gateways return', () => {
-    expect(extractBalance({ balance: '8.5' }, 'balance')).toEqual({ ok: true, value: 8.5 });
+    expect(extractBalance({ balance: '8.5' }, 'balance')).toEqual({
+      ok: true,
+      value: 8.5,
+      total: null,
+      percent: null,
+    });
   });
 
   it('applies the multiplier so cent-denominated quotas can be shown as currency', () => {
-    expect(extractBalance({ balance: 1234 }, 'balance', 0.01)).toEqual({ ok: true, value: 12.34 });
+    expect(extractBalance({ balance: 1234 }, 'balance', 0.01)).toMatchObject({
+      ok: true,
+      value: 12.34,
+    });
   });
 
   it('reads through array indexes', () => {
-    expect(extractBalance({ items: [{ left: 3 }] }, 'items[0].left')).toEqual({ ok: true, value: 3 });
+    expect(extractBalance({ items: [{ left: 3 }] }, 'items[0].left')).toMatchObject({
+      ok: true,
+      value: 3,
+    });
   });
 });
 
@@ -224,6 +238,14 @@ describe('presentation', () => {
     expect(formatBalanceBadge(1234)).toBe('1k');
   });
 
+  it('prefers a percentage on the badge, because four digits do not fit', () => {
+    expect(formatBalanceBadge(1234.56, 61.6)).toBe('62%');
+    expect(formatBalanceBadge(1234.56, 100)).toBe('100%');
+    expect(formatBalanceBadge(1234.56, 100).length).toBeLessThanOrEqual(4);
+    // No known total: fall back to the abbreviated amount.
+    expect(formatBalanceBadge(1234.56, null)).toBe('1k');
+  });
+
   it('flags a low balance only when a threshold is set', () => {
     expect(isBalanceLow(3, 5)).toBe(true);
     expect(isBalanceLow(9, 5)).toBe(false);
@@ -254,22 +276,17 @@ describe('isBalanceStale', () => {
   });
 
   it('refreshes only once the interval has elapsed', () => {
-    const cache = { value: 1, unit: '', fetchedAt: now - 10 * 60_000, error: '', erroredAt: 0 };
+    const cache = {
+      value: 1,
+      total: null,
+      percent: null,
+      unit: '',
+      fetchedAt: now - 10 * 60_000,
+      error: '',
+      erroredAt: 0,
+    };
     expect(isBalanceStale(cache, 30, now)).toBe(false);
     expect(isBalanceStale(cache, 5, now)).toBe(true);
-  });
-});
-
-describe('originPattern', () => {
-  it('narrows the permission request to one origin', () => {
-    expect(originPattern('https://gateway.example.com/api/v1/key/info?key=x')).toBe(
-      'https://gateway.example.com/*',
-    );
-  });
-
-  it('refuses to build a pattern for a non-https URL', () => {
-    expect(originPattern('http://a.example.com/x')).toBeNull();
-    expect(originPattern('not a url')).toBeNull();
   });
 });
 
@@ -284,7 +301,15 @@ describe('formatBalanceValue', () => {
 });
 
 describe('describeAiBalanceForPage', () => {
-  const cache = { value: 12.3456, unit: '美元💵', fetchedAt: 1, error: '', erroredAt: 0 };
+  const cache = {
+    value: 12.3456,
+    total: 13.5456,
+    percent: 91.1,
+    unit: '美元💵',
+    fetchedAt: 1,
+    error: '',
+    erroredAt: 0,
+  };
 
   it('sends nothing while the page display is off', () => {
     expect(describeAiBalanceForPage(config({ showInPage: false }), cache)).toEqual({
@@ -294,7 +319,7 @@ describe('describeAiBalanceForPage', () => {
   });
 
   it('sends nothing when no fetch has ever succeeded', () => {
-    const failed = { value: null, unit: '', fetchedAt: 0, error: '无效的令牌', erroredAt: 2 };
+    const failed = { ...cache, value: null, percent: null, error: '无效的令牌', fetchedAt: 0 };
     expect(describeAiBalanceForPage(config({ showInPage: true }), failed).text).toBe('');
   });
 
@@ -314,9 +339,65 @@ describe('describeAiBalanceForPage', () => {
   });
 
   it('falls back to the config unit when the cache predates it', () => {
-    const unitless = { ...cache, unit: '' };
     expect(
-      describeAiBalanceForPage(config({ showInPage: true, unit: '元' }), unitless).text,
+      describeAiBalanceForPage(config({ showInPage: true, unit: '元' }), { ...cache, unit: '' })
+        .text,
     ).toBe('12.35 元');
+  });
+});
+
+describe('percentage', () => {
+  it('derives the total from remaining + used when the API reports no total', () => {
+    const extracted = extractBalance(GATEWAY_OK, 'data.remain_quota_usd');
+    expect(extracted.ok).toBe(true);
+    if (!extracted.ok) return;
+    expect(extracted.total).toBeCloseTo(13.5456, 4);
+    expect(extracted.percent).toBeCloseTo(91.14, 1);
+  });
+
+  it('prefers an explicit total path over the candidates', () => {
+    const response = { data: { remain_quota_usd: 5, used_quota_usd: 5, plan_total: 20 } };
+    const extracted = extractBalance(response, 'data.remain_quota_usd', 1, 'data.plan_total');
+    expect(extracted.ok && extracted.percent).toBe(25);
+  });
+
+  it('reports no percentage rather than a made-up one', () => {
+    const extracted = extractBalance(GATEWAY_NO_TOTAL, 'data.remain_quota_usd');
+    expect(extracted.ok).toBe(true);
+    if (!extracted.ok) return;
+    expect(extracted.total).toBeNull();
+    expect(extracted.percent).toBeNull();
+  });
+
+  it('applies the multiplier to the total as well, keeping the ratio honest', () => {
+    // Cent-denominated gateway: 1234 remaining of 2000 granted.
+    const extracted = extractBalance(
+      { remain: 1234, total_quota: 2000 },
+      'remain',
+      0.01,
+      'total_quota',
+    );
+    expect(extracted.ok && extracted.value).toBeCloseTo(12.34, 4);
+    expect(extracted.ok && extracted.percent).toBeCloseTo(61.7, 4);
+  });
+
+  it('counts a fresh key with zero usage as 100%', () => {
+    const extracted = extractBalance(
+      { data: { remain_quota_usd: 20, used_quota_usd: 0 } },
+      'data.remain_quota_usd',
+    );
+    expect(extracted.ok && extracted.percent).toBe(100);
+  });
+
+  it('clamps a stale total instead of showing 120%', () => {
+    expect(toPercent(12, 10)).toBe(100);
+    expect(toPercent(-1, 10)).toBe(0);
+    expect(toPercent(5, 0)).toBeNull();
+    expect(toPercent(5, null)).toBeNull();
+  });
+
+  it('formats the panel percentage', () => {
+    expect(formatPercent(61.6)).toBe('剩余 62%');
+    expect(formatPercent(null)).toBe('');
   });
 });
