@@ -56,6 +56,16 @@ export type BuiltInCompanionId = 'ant' | 'snail' | 'wizard' | 'zombie';
 /** Comfortable three-line composer layout. Missing means enabled. */
 export const COMPOSER_ENHANCEMENT_STORAGE_KEY = 'octoComposerEnhancementEnabled';
 
+/**
+ * storage.local key holding the last Octo DOM compatibility report.
+ *
+ * Octo is a moving target: when a redesign renames the classes we hook into, the
+ * affected feature silently stops working. The MAIN world checks the
+ * load-bearing selectors after boot and stores the verdict here so the Side
+ * Panel can say which capability broke instead of leaving the user guessing.
+ */
+export const COMPAT_REPORT_STORAGE_KEY = 'octoCompatReport';
+
 export interface DesktopPetAnimationManifest {
   row: number;
   /** A frame count starting at column 0, or an explicit list of column indexes. */
@@ -117,6 +127,7 @@ export const MESSAGE_TYPE = {
   desktopPet: 'desktopPet',
   desktopPetPosition: 'desktopPetPosition',
   requestKickScript: 'requestKickScript',
+  compatReport: 'compatReport',
 } as const;
 
 export interface MasterMessage {
@@ -221,6 +232,23 @@ export interface KickScriptApi {
   setFullscreenKickPlayer(playerId: PlayerWatermarkId, ballImageUrl: string): void;
 }
 
+/** Persisted form of a compatibility report (see COMPAT_REPORT_STORAGE_KEY). */
+export interface StoredCompatReport {
+  /** Features whose selector no longer matches anything in Octo's DOM. */
+  brokenFeatures: string[];
+  /** Selector keys behind those features, for logs and bug reports. */
+  brokenKeys: string[];
+  /** Epoch ms of the check, so the panel can ignore stale reports. */
+  checkedAt: number;
+}
+
+/** MAIN world -> content script: persist the latest compatibility verdict. */
+export interface CompatReportMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: typeof MESSAGE_TYPE.compatReport;
+  report: StoredCompatReport;
+}
+
 export type OctoMessage =
   | MasterMessage
   | ToggleMessage
@@ -233,4 +261,5 @@ export type OctoMessage =
   | ComposerEnhancementMessage
   | DesktopPetMessage
   | DesktopPetPositionMessage
-  | RequestKickScriptMessage;
+  | RequestKickScriptMessage
+  | CompatReportMessage;

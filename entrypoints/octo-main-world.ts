@@ -1,6 +1,7 @@
 import {
   MESSAGE_SOURCE,
   MESSAGE_TYPE,
+  type CompatReportMessage,
   type OctoMessage,
 } from '@/utils/octoRecall';
 import { DEFAULT_THEME } from '@/utils/octoThemeCatalog';
@@ -22,6 +23,13 @@ import { applyDesktopPetState, teardownDesktopPet } from '@/utils/octoPetRendere
 import { getMessageWrapFromItem } from '@/utils/octoMessageFiber';
 import { startOctoPetSpeech } from '@/utils/octoPetSpeech';
 import { startOctoGithubLinks } from '@/utils/octoGithubLink';
+import {
+  HEALTHY_COMPAT_REPORT,
+  OCTO_SELECTORS,
+  checkOctoCompat,
+  documentCompatProbe,
+  type OctoCompatReport,
+} from '@/utils/octoSelectors';
 
 /**
  * MAIN-world script.
@@ -49,10 +57,10 @@ export default defineUnlistedScript(() => {
   // Revoked rows render as a system message. We do NOT gate on the tip text —
   // octo has several revoke phrasings (你撤回…/XX撤回…/撤回了成员…的一条消息/EN),
   // so the reliable signal is `message.revoke === true` read from the fiber.
-  const ITEM_SELECTOR = '.wk-message-item';
-  const CONVERSATION_SELECTOR = '.wk-conversation-content'; // message-list scroll host
-  const SYSTEM_SELECTOR = '.wk-message-system';
-  const ROW_SELECTOR = '.wk-msg-row'; // octo's normal message row
+  const ITEM_SELECTOR = OCTO_SELECTORS.messageItem;
+  const CONVERSATION_SELECTOR = OCTO_SELECTORS.conversation; // message-list scroll host
+  const SYSTEM_SELECTOR = OCTO_SELECTORS.messageSystem;
+  const ROW_SELECTOR = OCTO_SELECTORS.messageRow; // octo's normal message row
   const CLONE_CLASS = 'octo-recall-clone'; // our restored bubble (cloned row)
   const ITEM_CLASS = 'octo-recall-item'; // marks a message item we restored
   const BADGE_CLASS = 'octo-recall-badge';
@@ -484,6 +492,61 @@ export default defineUnlistedScript(() => {
   let recallEnabled = false;
   let lastThemeId = DEFAULT_THEME;
 
+  // ---- Octo DOM compatibility self-check ---------------------------------
+
+  let compatTimers: number[] = [];
+  let lastReportedCompat = '';
+
+  /**
+   * Check the load-bearing selectors and report anything that no longer matches.
+   *
+   * Retried on a short schedule rather than checked once: Octo mounts its shell
+   * and the conversation asynchronously, so an immediate check would be
+   * inconclusive. An inconclusive result is never reported — only a definite
+   * "the shell is here but this selector is gone" is worth telling the user.
+   */
+  function scheduleCompatCheck(): void {
+    clearCompatTimers();
+    for (const delay of [1_500, 5_000, 15_000]) {
+      compatTimers.push(
+        window.setTimeout(() => {
+          if (!masterEnabled) return;
+          let report: OctoCompatReport;
+          try {
+            report = checkOctoCompat(documentCompatProbe());
+          } catch {
+            return;
+          }
+          if (!report.conclusive) return;
+
+          // Only post on change, so a healthy page does not write storage on
+          // every retry.
+          const fingerprint = report.brokenKeys.join(',');
+          if (fingerprint === lastReportedCompat) return;
+          lastReportedCompat = fingerprint;
+
+          window.postMessage(
+            {
+              source: MESSAGE_SOURCE,
+              type: MESSAGE_TYPE.compatReport,
+              report: {
+                brokenFeatures: report.brokenFeatures,
+                brokenKeys: report.brokenKeys,
+                checkedAt: Date.now(),
+              },
+            } satisfies CompatReportMessage,
+            '*',
+          );
+        }, delay),
+      );
+    }
+  }
+
+  function clearCompatTimers(): void {
+    for (const id of compatTimers) window.clearTimeout(id);
+    compatTimers = [];
+  }
+
   /**
    * Turn the whole extension on/off. Off is meant to look exactly like the
    * extension is uninstalled: recall reverts its DOM and the beautify + theme
@@ -499,6 +562,7 @@ export default defineUnlistedScript(() => {
       stopPetSpeech ??= startOctoPetSpeech();
       stopGithubLinks ??= startOctoGithubLinks();
       if (recallEnabled) enable();
+      scheduleCompatCheck();
     } else {
       disable();
       document.getElementById(STYLE_ID)?.remove();
@@ -509,6 +573,8 @@ export default defineUnlistedScript(() => {
       stopPetSpeech = undefined;
       stopGithubLinks?.();
       stopGithubLinks = undefined;
+      clearCompatTimers();
+      lastReportedCompat = '';
     }
   }
 

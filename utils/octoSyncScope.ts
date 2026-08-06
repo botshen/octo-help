@@ -21,13 +21,22 @@
  * DOM.
  */
 
+import { OCTO_SELECTORS } from './octoSelectors';
+
 /** Elements whose appearance/removal means the message passes must re-run. */
-const MESSAGE_SELECTOR =
-  '.wk-msg-row, .wk-markdown, .wk-fold-msg-text, .wk-fold-session-card-toggle';
+const MESSAGE_SELECTOR = [
+  OCTO_SELECTORS.messageRow,
+  OCTO_SELECTORS.messageBody,
+  OCTO_SELECTORS.foldMessageBody,
+  OCTO_SELECTORS.foldToggle,
+].join(', ');
 
 /** Bot profile card nodes; these need a synchronous rarity roll, pre-paint. */
-const BOT_CARD_SELECTOR =
-  '.wk-bot-detail-content, .wk-bot-detail-section, .wk-bot-detail-modal';
+const BOT_CARD_SELECTOR = [
+  OCTO_SELECTORS.botCardContent,
+  '.wk-bot-detail-section',
+  OCTO_SELECTORS.botCardModal,
+].join(', ');
 
 /**
  * Above this many changed subtrees, scoped queries stop paying off: the

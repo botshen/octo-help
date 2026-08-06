@@ -1,8 +1,10 @@
 import { getMessageWrapFromItem } from './octoMessageFiber';
 import { showDesktopPetSpeech } from './octoPetRenderer';
 
-const ITEM_SELECTOR = '.wk-message-item';
-const MESSAGE_AREA_SELECTOR = '.wk-conversation-messages, .wk-conversation-content';
+import { OCTO_SELECTORS } from './octoSelectors';
+
+const ITEM_SELECTOR = OCTO_SELECTORS.messageItem;
+const MESSAGE_AREA_SELECTOR = OCTO_SELECTORS.messageArea;
 const MAX_SUMMARY_LENGTH = 52;
 const MAX_SEEN_KEYS = 500;
 const FRESH_MESSAGE_WINDOW_MS = 30_000;

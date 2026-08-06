@@ -157,6 +157,45 @@ select:disabled {
   line-height: 1.4;
 }
 
+/* Octo DOM compatibility warning: a specific "this capability broke because the
+   site changed" notice, so a site redesign does not read as a broken extension. */
+.compat-warning {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: -2px 2px 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(216, 138, 32, 0.28);
+  border-radius: 12px;
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.compat-warning-icon {
+  flex: none;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.compat-warning-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.compat-warning-title {
+  color: #a86a10;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.compat-warning-desc {
+  color: var(--text-soft, #6b6f76);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .settings-card {
   overflow: hidden;
   border: 1px solid var(--line);

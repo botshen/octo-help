@@ -1,8 +1,9 @@
 import type { BuiltInCompanionId } from './octoRecall';
+import { OCTO_SELECTORS } from './octoSelectors';
 
 const ROOT_ID = 'octo-built-in-companion';
 const STYLE_ID = 'octo-built-in-companion-style';
-const COMPOSER_SELECTOR = '.wk-messageinput-card';
+const COMPOSER_SELECTOR = OCTO_SELECTORS.composer;
 const SPEECH_DURATION_MS = 5_000;
 
 const COMPANIONS: Record<

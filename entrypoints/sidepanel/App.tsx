@@ -21,11 +21,13 @@ import {
   MESSI_WATERMARK_STORAGE_KEY,
   PLAYER_WATERMARK_STORAGE_KEY,
   QQ_SELF_LEFT_STORAGE_KEY,
+  COMPAT_REPORT_STORAGE_KEY,
   STORAGE_KEY,
   THEME_STORAGE_KEY,
   type PlayerWatermarkId,
   type BuiltInCompanionId,
   type DesktopPetPlacement,
+  type StoredCompatReport,
   type StoredDesktopPet,
 } from '@/utils/octoRecall';
 import {
@@ -295,6 +297,30 @@ function normalizeStoredId(
     : fallback;
 }
 
+/**
+ * Validate a persisted compatibility report before trusting it in the UI.
+ *
+ * The value originates in the MAIN world (page context), so it is treated as
+ * untrusted input even though the content script already filtered it.
+ */
+function readCompatReport(value: unknown): StoredCompatReport | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<StoredCompatReport>;
+  if (!Array.isArray(candidate.brokenFeatures) || typeof candidate.checkedAt !== 'number') {
+    return null;
+  }
+  const brokenFeatures = candidate.brokenFeatures
+    .filter((entry): entry is string => typeof entry === 'string')
+    .slice(0, 12);
+  return {
+    brokenFeatures,
+    brokenKeys: Array.isArray(candidate.brokenKeys)
+      ? candidate.brokenKeys.filter((k): k is string => typeof k === 'string').slice(0, 12)
+      : [],
+    checkedAt: candidate.checkedAt,
+  };
+}
+
 function App() {
   const [masterEnabled, setMasterEnabled] = useState(true);
   const [enabled, setEnabled] = useState(false);
@@ -314,6 +340,7 @@ function App() {
   const [petBusy, setPetBusy] = useState(false);
   const [petError, setPetError] = useState('');
   const [settingsError, setSettingsError] = useState('');
+  const [compatReport, setCompatReport] = useState<StoredCompatReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeThemePicker, setActiveThemePicker] = useState<'message' | 'global' | null>(null);
   const petFileInput = useRef<HTMLInputElement>(null);
@@ -343,6 +370,7 @@ function App() {
         DESKTOP_PET_PLACEMENT_STORAGE_KEY,
         COMPOSER_ENHANCEMENT_STORAGE_KEY,
         BUILT_IN_COMPANION_STORAGE_KEY,
+        COMPAT_REPORT_STORAGE_KEY,
       ])
       .then((res) => {
         if (!mounted) return;
@@ -363,6 +391,7 @@ function App() {
         // Default ON (missing key => enabled).
         setBallCursor(res[BALL_CURSOR_STORAGE_KEY] !== false);
         setQqSelfLeft(res[QQ_SELF_LEFT_STORAGE_KEY] === true);
+        setCompatReport(readCompatReport(res[COMPAT_REPORT_STORAGE_KEY]));
         const storedDesktopPet = isStoredDesktopPet(res[DESKTOP_PET_STORAGE_KEY])
           ? res[DESKTOP_PET_STORAGE_KEY]
           : null;
@@ -394,6 +423,19 @@ function App() {
     return () => {
       mounted = false;
     };
+  }, []);
+
+  // The compatibility verdict is produced by the Octo page 1.5-15s after it
+  // boots, which is usually *after* the panel has already loaded. Watch for it
+  // instead of only reading once on mount, or the warning would never appear in
+  // the session where it matters.
+  useEffect(() => {
+    const onChanged = (changes: Record<string, { newValue?: unknown }>) => {
+      if (!(COMPAT_REPORT_STORAGE_KEY in changes)) return;
+      setCompatReport(readCompatReport(changes[COMPAT_REPORT_STORAGE_KEY].newValue));
+    };
+    browser.storage.local.onChanged.addListener(onChanged);
+    return () => browser.storage.local.onChanged.removeListener(onChanged);
   }, []);
 
   const persistSetting = useCallback(async <T,>(
@@ -600,6 +642,18 @@ function App() {
         </button>
       </section>
       {settingsError && <p className="settings-error" role="alert">{settingsError}</p>}
+      {compatReport && compatReport.brokenFeatures.length > 0 && (
+        <section className="compat-warning" role="status">
+          <span className="compat-warning-icon" aria-hidden="true">⚠️</span>
+          <div className="compat-warning-copy">
+            <span className="compat-warning-title">部分增强可能已失效</span>
+            <span className="compat-warning-desc">
+              Octo 页面结构发生变化，以下能力暂时无法生效：
+              {compatReport.brokenFeatures.join('、')}。其余功能不受影响。
+            </span>
+          </div>
+        </section>
+      )}
 
       <div className="settings-stack">
         <section className="settings-card" aria-labelledby="appearance-title">

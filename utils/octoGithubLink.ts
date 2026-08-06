@@ -1,7 +1,9 @@
 const ROOT_CLASS = 'octo-github-links';
 const STYLE_ID = 'octo-github-links-style';
-const MESSAGE_SELECTOR = '.wk-message-item';
-const CONTENT_SELECTOR = '.wk-markdown, .wk-fold-msg-text';
+import { OCTO_SELECTORS } from './octoSelectors';
+
+const MESSAGE_SELECTOR = OCTO_SELECTORS.messageItem;
+const CONTENT_SELECTOR = OCTO_SELECTORS.anyMessageBody;
 const URL_PATTERN = /(?:https?:\/\/)?(?:www\.)?github\.com\/[^\s<>"'，。！？；：、]+/gi;
 const TRAILING_PUNCTUATION = /[.,;:!?，。！？；：、)\]}>]+$/;
 

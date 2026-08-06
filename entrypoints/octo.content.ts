@@ -1,6 +1,7 @@
 import {
   BALL_CURSOR_STORAGE_KEY,
   BUILT_IN_COMPANION_STORAGE_KEY,
+  COMPAT_REPORT_STORAGE_KEY,
   COMPOSER_ENHANCEMENT_STORAGE_KEY,
   DESKTOP_PET_ENABLED_STORAGE_KEY,
   DESKTOP_PET_PLACEMENT_STORAGE_KEY,
@@ -19,6 +20,7 @@ import {
   THEME_STORAGE_KEY,
   type BallCursorMessage,
   type BuiltInCompanionId,
+  type CompatReportMessage,
   type ComposerEnhancementMessage,
   type DesktopPetMessage,
   type DesktopPetPlacement,
@@ -31,6 +33,7 @@ import {
   type PlayerWatermarkMessage,
   type QQSelfLeftMessage,
   type RequestKickScriptMessage,
+  type StoredCompatReport,
   type ThemeMessage,
   type ToggleMessage,
 } from '@/utils/octoRecall';
@@ -346,8 +349,32 @@ export default defineContentScript({
       const data = event.data as
         | DesktopPetPositionMessage
         | RequestKickScriptMessage
+        | CompatReportMessage
         | undefined;
       if (!data || data.source !== MESSAGE_SOURCE) return;
+
+      // Octo DOM compatibility verdict from the MAIN world. Persist it so the
+      // Side Panel can name the broken capability instead of the user only
+      // seeing that "the extension stopped working".
+      if (data.type === MESSAGE_TYPE.compatReport) {
+        const report = data.report;
+        if (
+          !report ||
+          !Array.isArray(report.brokenFeatures) ||
+          !Array.isArray(report.brokenKeys) ||
+          typeof report.checkedAt !== 'number'
+        ) {
+          return;
+        }
+        void browser.storage.local.set({
+          [COMPAT_REPORT_STORAGE_KEY]: {
+            brokenFeatures: report.brokenFeatures.slice(0, 12).map(String),
+            brokenKeys: report.brokenKeys.slice(0, 12).map(String),
+            checkedAt: report.checkedAt,
+          } satisfies StoredCompatReport,
+        });
+        return;
+      }
 
       // Lazy load of the pixi.js kick effect. Only a content script can call
       // injectScript, so the MAIN world asks us to do it the first time a

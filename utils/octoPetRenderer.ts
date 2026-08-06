@@ -7,6 +7,7 @@ import {
   type DesktopPetPositionMessage,
   type StoredDesktopPet,
 } from './octoRecall';
+import { OCTO_SELECTORS } from './octoSelectors';
 import {
   parseDesktopPetManifest,
   resolveDesktopPetAnimations,
@@ -29,7 +30,7 @@ const VIEWPORT_PADDING = 8;
 const MAX_RENDERED_FRAME_SIZE = 180;
 const MAX_COMPOSER_FRAME_SIZE = 72;
 const SPEECH_DURATION_MS = 5_000;
-const COMPOSER_SELECTOR = '.wk-messageinput-card';
+const COMPOSER_SELECTOR = OCTO_SELECTORS.composer;
 
 let animationTimer: number | undefined;
 let speechTimer: number | undefined;
