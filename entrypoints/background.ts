@@ -13,12 +13,9 @@ import {
 import {
   BALANCE_FETCH_TIMEOUT_MS,
   BALANCE_MAX_RESPONSE_BYTES,
+  describeAiBalanceBadge,
   describeAiBalanceForPage,
   extractBalance,
-  formatBalance,
-  formatBalanceBadge,
-  formatPercent,
-  isBalanceLow,
   isBalanceStale,
   parseStoredAiBalanceCache,
   parseStoredAiBalanceConfig,
@@ -174,36 +171,20 @@ export default defineBackground(() => {
     await browser.storage.local.set({ [AI_BALANCE_PAGE_STORAGE_KEY]: state });
   }
 
+  /** Reflect the balance on the toolbar icon — including clearing it again. */
   async function updateBadge(
     config: AiBalanceConfig | null,
     cache: AiBalanceCache | null,
   ): Promise<void> {
     if (!browser.action?.setBadgeText) return;
-    const value = cache?.value ?? null;
-    if (!config || value == null) {
-      await browser.action.setBadgeText({ text: '' }).catch(() => {});
-      return;
+    const badge = describeAiBalanceBadge(config, cache);
+    await browser.action.setBadgeText({ text: badge.text }).catch(() => {});
+    if (badge.text) {
+      await browser.action.setBadgeBackgroundColor({ color: badge.color }).catch(() => {});
     }
-    const low = isBalanceLow(value, config.lowThreshold);
-    // Percentage when the user wants it and we know a total: `1234.56` cannot be
-    // shown in four glyphs, `62%` can. The exact figure goes in the tooltip.
-    const badgePercent = config.badgePercent ? (cache?.percent ?? null) : null;
-    await browser.action
-      .setBadgeText({ text: formatBalanceBadge(value, badgePercent) })
-      .catch(() => {});
-    await browser.action
-      .setBadgeBackgroundColor({ color: low ? '#e5484d' : '#6f5ee8' })
-      .catch(() => {});
-    // The badge is four glyphs at best, so the unit and the warning live in the
-    // tooltip instead of being truncated into meaninglessness.
-    const percentSuffix = cache?.percent == null ? '' : ` · ${formatPercent(cache.percent)}`;
-    await browser.action
-      .setTitle({
-        title: `AI 余额 ${formatBalance(value, config.unit, config.decimals)}${percentSuffix}${
-          low ? '（偏低）' : ''
-        }`,
-      })
-      .catch(() => {});
+    // Always written, never skipped: the tooltip is shared with the rest of the
+    // extension, so an early return here would leave a stale balance on the icon.
+    await browser.action.setTitle({ title: badge.title }).catch(() => {});
   }
 
   /** Fetch, persist and reflect the result. Returns what happened for the caller. */

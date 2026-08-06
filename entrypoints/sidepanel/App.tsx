@@ -659,7 +659,10 @@ function App() {
         <div className="brand-copy">
           <h1 className="title">Octo 聊天增强</h1>
           <span className="brand-subtitle">
-            {masterEnabled ? '让你的 Octo 更好看、更好用' : '已暂停，页面与未安装时一致'}
+            {/* Names what the extension actually does. The previous line
+                ("让你的 Octo 更好看、更好用") was true of any enhancement and
+                occupied the most-read row in the panel. */}
+            {masterEnabled ? '撤回的消息、好看的皮肤、随手看余额' : '已暂停，页面与未安装时一致'}
           </span>
         </div>
         <div className="brand-master">

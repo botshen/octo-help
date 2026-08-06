@@ -1,5 +1,5 @@
 import { defineConfig } from 'wxt';
-import { OCTO_MATCHES } from './utils/octoRecall';
+import { DEFAULT_ACTION_TITLE, OCTO_MATCHES } from './utils/octoRecall';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -26,10 +26,16 @@ export default defineConfig({
   },
   manifest: {
     name: 'Octo 聊天增强',
-    description: '增强 Octo 网页聊天：消息美化、舒适输入框、输入框宠物、AI 余额、GitHub 快捷入口和本地桌面宠物。',
+    // Leads with recall restoration on purpose: it is the one capability nothing
+    // else offers, and the old blurb ("增强 Octo 网页聊天：消息美化…") did not
+    // mention it at all while listing the pets twice.
+    description:
+      '把撤回的消息读回来，顺手换套好看的皮肤：撤回还原、消息美化与全站换肤、AI 余额、舒适输入框、GitHub 快捷跳转和桌面宠物。',
     minimum_chrome_version: '114',
     action: {
-      default_title: '打开 Octo 聊天增强设置',
+      // Shared constant: the AI balance overwrites this tooltip with the current
+      // figure and has to be able to put it back.
+      default_title: DEFAULT_ACTION_TITLE,
     },
     permissions: ['storage', 'unlimitedStorage', 'alarms'],
     // `<all_urls>` is here for the AI balance endpoint, which is whatever gateway

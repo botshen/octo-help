@@ -3,9 +3,12 @@ import {
   AI_BALANCE_PRESETS,
   DEFAULT_AI_BALANCE_CONFIG,
   MIN_REFRESH_MINUTES,
+  BADGE_COLOR,
+  BADGE_COLOR_LOW,
   applyPreset,
   baseUrlOf,
   clampRefreshMinutes,
+  describeAiBalanceBadge,
   describeAiBalanceForPage,
   extractBalance,
   formatBalance,
@@ -25,7 +28,7 @@ import {
   toPercent,
   validateAiBalanceConfig,
 } from './octoAiBalance';
-import type { AiBalanceConfig } from './octoRecall';
+import { DEFAULT_ACTION_TITLE, type AiBalanceConfig } from './octoRecall';
 
 /** The response shape this feature was built against. */
 const GATEWAY_OK = {
@@ -474,5 +477,56 @@ describe('feature switch', () => {
       badgePercent: false,
     });
     expect(parsed).toMatchObject({ enabled: false, badgePercent: false });
+  });
+});
+
+describe('describeAiBalanceBadge', () => {
+  const cache = {
+    value: 1234.56,
+    total: 2000,
+    percent: 61.728,
+    unit: '美元💵',
+    fetchedAt: 1,
+    error: '',
+    erroredAt: 0,
+  };
+
+  it('shows the percentage and spells the amount out in the tooltip', () => {
+    expect(describeAiBalanceBadge(config({ enabled: true }), cache)).toEqual({
+      text: '62%',
+      color: BADGE_COLOR,
+      title: 'AI 余额 1234.56 美元💵 · 剩余 62%',
+    });
+  });
+
+  it('falls back to the amount when the percentage badge is switched off', () => {
+    expect(describeAiBalanceBadge(config({ badgePercent: false }), cache).text).toBe('1k');
+  });
+
+  it('turns red below the threshold and says so in the tooltip', () => {
+    const badge = describeAiBalanceBadge(config({ lowThreshold: 2000 }), cache);
+    expect(badge.color).toBe(BADGE_COLOR_LOW);
+    expect(badge.title).toContain('（偏低）');
+  });
+
+  it('restores the default tooltip when the feature is off', () => {
+    // Regression: the badge text used to be cleared while the tooltip kept the
+    // last balance, so a switched-off feature (or a paused extension, which is
+    // supposed to look uninstalled) still reported a figure on the icon.
+    for (const off of [
+      describeAiBalanceBadge(config({ enabled: false }), cache),
+      describeAiBalanceBadge(null, cache),
+      describeAiBalanceBadge(config(), null),
+      describeAiBalanceBadge(config(), { ...cache, value: null }),
+    ]) {
+      expect(off.text).toBe('');
+      expect(off.title).toBe(DEFAULT_ACTION_TITLE);
+    }
+  });
+
+  it('omits the percentage from the tooltip when no total is known', () => {
+    const badge = describeAiBalanceBadge(config(), { ...cache, total: null, percent: null });
+    expect(badge.title).toBe('AI 余额 1234.56 美元💵');
+    expect(badge.text).toBe('1k');
   });
 });

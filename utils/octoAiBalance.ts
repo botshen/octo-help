@@ -1,7 +1,8 @@
-import type {
-  AiBalanceCache,
-  AiBalanceConfig,
-  AiBalancePageState,
+import {
+  DEFAULT_ACTION_TITLE,
+  type AiBalanceCache,
+  type AiBalanceConfig,
+  type AiBalancePageState,
 } from './octoRecall';
 
 /**
@@ -502,6 +503,47 @@ export function formatBalanceBadge(value: number, percent: number | null = null)
   if (absolute >= 100) return String(Math.round(value));
   if (absolute >= 10) return value.toFixed(1);
   return value.toFixed(2).slice(0, 4);
+}
+
+/** Badge colours: the warning one is the only signal a four-glyph badge can carry. */
+export const BADGE_COLOR = '#6f5ee8';
+export const BADGE_COLOR_LOW = '#e5484d';
+
+export interface AiBalanceBadgeState {
+  /** Empty means "no badge", which is also how the feature being off looks. */
+  text: string;
+  color: string;
+  /** Always set: the tooltip must be restored, not just left behind. */
+  title: string;
+}
+
+/**
+ * Everything the toolbar icon should show.
+ *
+ * Pure so the "off" case is a tested invariant rather than an early `return` in
+ * the background that someone can forget to keep complete: leaving the previous
+ * tooltip in place made the icon report a balance for a feature the user had
+ * just switched off (and, with the master switch off, for an extension that is
+ * supposed to look uninstalled).
+ */
+export function describeAiBalanceBadge(
+  config: AiBalanceConfig | null,
+  cache: AiBalanceCache | null,
+): AiBalanceBadgeState {
+  const value = cache?.value ?? null;
+  if (!config?.enabled || value == null) {
+    return { text: '', color: BADGE_COLOR, title: DEFAULT_ACTION_TITLE };
+  }
+  const low = isBalanceLow(value, config.lowThreshold);
+  const percent = config.badgePercent ? (cache?.percent ?? null) : null;
+  const suffix = cache?.percent == null ? '' : ` · ${formatPercent(cache.percent)}`;
+  return {
+    text: formatBalanceBadge(value, percent),
+    color: low ? BADGE_COLOR_LOW : BADGE_COLOR,
+    title: `AI 余额 ${formatBalance(value, config.unit, config.decimals)}${suffix}${
+      low ? '（偏低）' : ''
+    }`,
+  };
 }
 
 /** `剩余 62%`, or '' when no total is known. */

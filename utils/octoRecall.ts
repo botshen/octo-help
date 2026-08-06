@@ -215,6 +215,16 @@ export interface AiBalanceCache {
   erroredAt: number;
 }
 
+/**
+ * Toolbar tooltip when there is nothing live to report.
+ *
+ * Shared with `wxt.config.ts` (which sets it as `action.default_title`) because
+ * the AI balance *overwrites* the tooltip with the current figure — so switching
+ * the balance off has to put this exact string back, or the icon keeps claiming a
+ * balance that is no longer being refreshed.
+ */
+export const DEFAULT_ACTION_TITLE = '打开 Octo 聊天增强设置';
+
 /** window.postMessage envelope source, so we ignore unrelated messages. */
 export const MESSAGE_SOURCE = 'octo-recall';
 
