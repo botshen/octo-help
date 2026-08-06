@@ -78,70 +78,70 @@ select:disabled {
   white-space: nowrap;
 }
 
-.master-card {
+/* Master switch lives in the app bar, not in the feature list: "off" is meant to
+   look like the extension is not installed, which is a different kind of thing
+   from a per-feature toggle. */
+.brand-master {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 7px;
+  margin-left: auto;
+  flex: none;
+}
+
+.brand-master-label {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.brand.is-paused .brand-logo {
+  filter: grayscale(0.85);
+}
+
+.brand.is-paused .title {
+  color: var(--muted);
+}
+
+/* Says what "off" means, because it is stronger than the feature toggles. */
+.master-paused {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
   margin-bottom: 12px;
-  padding: 12px 13px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  padding: 11px 12px;
+  border: 1px solid rgba(189, 129, 35, 0.28);
+  border-radius: 12px;
+  background: rgba(250, 173, 20, 0.1);
 }
 
-.master-card.is-enabled {
-  border-color: rgba(111, 94, 232, 0.28);
-  background: linear-gradient(110deg, var(--surface) 0%, #f9f7ff 100%);
-}
-
-.master-status {
+.master-paused-icon {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   flex: none;
   place-items: center;
-  border-radius: 9px;
-  background: var(--surface-subtle);
-}
-
-.master-status span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #aeb4bd;
-  box-shadow: 0 0 0 4px rgba(174, 180, 189, 0.16);
-}
-
-.master-card.is-enabled .master-status {
-  background: var(--accent-soft);
-}
-
-.master-card.is-enabled .master-status span {
-  background: var(--accent);
-  box-shadow: 0 0 0 4px rgba(111, 94, 232, 0.14);
-}
-
-.master-copy {
-  display: flex;
-  min-width: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.master-title {
-  font-size: 13px;
-  font-weight: 650;
-}
-
-.master-desc {
-  overflow: hidden;
-  color: var(--muted);
+  border-radius: 8px;
+  background: rgba(189, 129, 35, 0.16);
+  color: #a4650b;
   font-size: 11px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.master-paused strong {
+  display: block;
+  font-size: 12px;
+}
+
+.master-paused p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.5;
+}
+
+/* Still editable while paused — the settings just are not in effect yet. */
+.settings-stack.is-paused {
+  opacity: 0.62;
 }
 
 .settings-stack {
@@ -1148,8 +1148,14 @@ select:disabled {
     --shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
   }
 
-  .master-card.is-enabled {
-    background: linear-gradient(110deg, var(--surface) 0%, #302d43 100%);
+  .master-paused {
+    border-color: rgba(223, 182, 111, 0.24);
+    background: rgba(189, 129, 35, 0.14);
+  }
+
+  .master-paused-icon {
+    background: rgba(223, 182, 111, 0.18);
+    color: #dfb66f;
   }
 
   .section-icon {

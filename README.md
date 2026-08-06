@@ -18,6 +18,7 @@
 ## 原理
 
 - **撤回还原**：Octo 撤回消息时并不删除原文——后端同步时 `revoke=1` 与原始 payload 一起下发，原文保留在页面 React 内存的 `message.content` 上，前端只是把整行渲染成系统提示。插件注入页面 **MAIN world**，从撤回行的 React Fiber 反查出 `message`，克隆一条正常消息行、填入原文并标注「已撤回」。全程只读 props，不改 React 状态、不 patch 原型，可逆。
+- **总开关不在功能列表里**：它放在顶部应用栏，因为它不是「再多一个开关」——关闭意味着页面回到没装扩展的样子。暂停时除了拆掉页面痕迹，AI 余额的轮询和图标角标也一并停止（`readActiveConfig()` 同时看总开关），否则工具栏上还在跳的角标就破坏了「等于未安装」这个承诺。面板此时仍可修改设置，只是不生效，并显式提示这一点。
 - **每个功能一个开关**：美化引擎也有了自己的开关键 `octoBeautifyEnabled`（缺省为开）。关闭时 MAIN world 会 `teardownBeautify()`，并丢弃主题/射门/球星/鼠标这一族设置消息（它们都在驱动已经拆掉的引擎）；重新打开时内容脚本会重放整族设置，和总开关的处理方式一致。
 - **换肤**：主题模型 `base`→`body[theme-mode]`（亮/暗，联动 app 原生暗色）、`skin`→`body[data-octo-skin]`（消息皮肤）。样式由注入的大段 CSS 按这两个属性切换；Side Panel 选中的主题存 `browser.storage.local`，经内容脚本转发到 MAIN world 应用。有 `MutationObserver` 在 app 启动强制亮色时「重申」所选主题（带自写抑制 + 去抖，避免与 app 抢属性打死循环）。
 - **开卡抽卡**：Bot 资料卡弹窗挂载时，美化引擎的 `sync()` 按加权概率 `Math.random()` 抽一个稀有度，写到 `.wk-modal-shell` / `.wk-bot-detail-content` 的 `data-octo-rarity` 上——卡框配色、角标文字（`content: attr(...)`）、辉光强度全部由 CSS 据此渲染。抽卡是「每个卡片实例一次」：同一弹窗重渲染沿用已抽结果，关闭重开则是新实例、重新抽。揭晓特效节点注入 `<body>`（在弹窗 React 树之外，避免被 reconcile 清掉），播完自移除。只读随机 + 自身属性写入，不改源码、不改 React 状态。

@@ -650,38 +650,51 @@ function App() {
 
   return (
     <main className="panel">
-      <header className="brand">
+      {/* The master switch belongs to the app bar, not to the feature list: it is
+          not "one more toggle" — off is supposed to look like the extension is
+          not installed. Keeping it in the same stack as the per-feature rows made
+          it read as a peer of them. */}
+      <header className={`brand${masterEnabled ? '' : ' is-paused'}`}>
         <img className="brand-logo" src="/logo.png" alt="" />
         <div className="brand-copy">
           <h1 className="title">Octo 聊天增强</h1>
-          <span className="brand-subtitle">让你的 Octo 更好看、更好用</span>
+          <span className="brand-subtitle">
+            {masterEnabled ? '让你的 Octo 更好看、更好用' : '已暂停，页面与未安装时一致'}
+          </span>
+        </div>
+        <div className="brand-master">
+          <span className="brand-master-label">{masterEnabled ? '已启用' : '已暂停'}</span>
+          <button
+            type="button"
+            role="switch"
+            aria-label="启用全部增强"
+            aria-checked={masterEnabled}
+            className={`switch master-switch${masterEnabled ? ' switch-on' : ''}`}
+            disabled={loading}
+            onClick={toggleMaster}
+          >
+            <span className="switch-knob" />
+          </button>
         </div>
       </header>
 
-      {/* The balance is the one number people open this panel to check, so it sits
-          above the switches rather than inside a card. */}
-      <AiBalanceBanner />
+      {/* Hidden while paused: the background stops polling then, so the number
+          would be a stale figure with nothing saying so. */}
+      {masterEnabled && <AiBalanceBanner />}
 
-      <section className={`master-card${masterEnabled ? ' is-enabled' : ''}`}>
-        <div className="master-status" aria-hidden="true"><span /></div>
-        <div className="master-copy">
-          <span className="master-title">全部增强</span>
-          <span className="master-desc">
-            {masterEnabled ? '已开启，修改设置后立即生效' : '已暂停，修改会在重新开启后生效'}
-          </span>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-label="启用全部增强"
-          aria-checked={masterEnabled}
-          className={`switch master-switch${masterEnabled ? ' switch-on' : ''}`}
-          disabled={loading}
-          onClick={toggleMaster}
-        >
-          <span className="switch-knob" />
-        </button>
-      </section>
+      {!masterEnabled && (
+        <section className="master-paused" role="status">
+          <span className="master-paused-icon" aria-hidden="true">⏸</span>
+          <div>
+            <strong>全部增强已暂停</strong>
+            <p>
+              页面已还原成没有安装扩展的样子，余额查询和图标角标也一并停止。
+              下面的设置可以照常修改，会在重新启用后生效。
+            </p>
+          </div>
+        </section>
+      )}
+
       {settingsError && <p className="settings-error" role="alert">{settingsError}</p>}
       {compatReport && compatReport.brokenFeatures.length > 0 && (
         <section className="compat-warning" role="status">
@@ -696,7 +709,7 @@ function App() {
         </section>
       )}
 
-      <div className="settings-stack">
+      <div className={`settings-stack${masterEnabled ? '' : ' is-paused'}`}>
         <AiBalanceCard
           disabled={loading}
           open={openFeature === 'balance'}

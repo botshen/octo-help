@@ -3,6 +3,7 @@ import {
   AI_BALANCE_CACHE_STORAGE_KEY,
   AI_BALANCE_CONFIG_STORAGE_KEY,
   AI_BALANCE_PAGE_STORAGE_KEY,
+  MASTER_STORAGE_KEY,
   RUNTIME_MESSAGE_TYPE,
   type AiBalanceCache,
   type AiBalanceConfig,
@@ -44,26 +45,32 @@ export default defineBackground(() => {
    *    scripts; only the formatted number is relayed to the page.
    * 2. The panel is closed most of the time, and an alarm keeps the cached value
    *    fresh (and the toolbar badge meaningful) without it.
-   * 3. Cross-origin fetches here are governed by the extension's optional host
-   *    permission for that one origin, not by the page's CORS policy.
+   * 3. Cross-origin fetches happen here, against the one URL the user configured,
+   *    rather than from a page subject to CORS.
    */
-
-  /** The stored config, or null when there is none. */
-  async function readConfig(): Promise<AiBalanceConfig | null> {
-    const stored = await browser.storage.local.get(AI_BALANCE_CONFIG_STORAGE_KEY);
-    return parseStoredAiBalanceConfig(stored[AI_BALANCE_CONFIG_STORAGE_KEY]);
-  }
 
   /**
-   * The config only when the feature is switched on.
+   * The config only when the balance should actually be polled.
    *
-   * Off means: no polling, no alarm, no badge, no page pill — but the config
-   * (and the key) stays, so switching back on is one click rather than a
-   * re-setup. Every side effect goes through this, so there is one place where
-   * "off" is enforced.
+   * Two switches gate it, and both mean "stop the side effects, keep the
+   * configuration":
+   *
+   * - the feature's own switch, so turning it back on is one click and not a
+   *   re-setup;
+   * - the master switch, because it promises the extension looks uninstalled —
+   *   a badge still counting down on the toolbar icon would break that promise
+   *   just as much as leftover styles on the page.
+   *
+   * Every side effect goes through here, so "off" is enforced in one place.
    */
   async function readActiveConfig(): Promise<AiBalanceConfig | null> {
-    const config = await readConfig();
+    const stored = await browser.storage.local.get([
+      AI_BALANCE_CONFIG_STORAGE_KEY,
+      MASTER_STORAGE_KEY,
+    ]);
+    // Missing master key means enabled, matching every other reader.
+    if (stored[MASTER_STORAGE_KEY] === false) return null;
+    const config = parseStoredAiBalanceConfig(stored[AI_BALANCE_CONFIG_STORAGE_KEY]);
     return config?.enabled ? config : null;
   }
 
@@ -284,7 +291,9 @@ export default defineBackground(() => {
   // The Side Panel owns the config; the alarm interval and the badge have to
   // follow it without the panel having to remember to ask.
   browser.storage.local.onChanged.addListener((changes) => {
-    if (AI_BALANCE_CONFIG_STORAGE_KEY in changes) {
+    // The master switch matters here too: pausing must clear the badge and the
+    // alarm, resuming must bring both back.
+    if (AI_BALANCE_CONFIG_STORAGE_KEY in changes || MASTER_STORAGE_KEY in changes) {
       void rescheduleAlarm();
       void refreshIfStale();
     }
