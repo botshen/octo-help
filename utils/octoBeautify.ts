@@ -16,6 +16,14 @@ import {
   type ThemePresentation,
 } from './octoThemeCatalog';
 import {
+  EMPTY_SYNC_SCOPE,
+  FULL_SYNC_SCOPE,
+  classifyMutations,
+  isEmptyScope,
+  mergeScopes,
+  type SyncScope,
+} from './octoSyncScope';
+import {
   setFullscreenKickBallCursor,
   setFullscreenKickPlayer,
   setFullscreenKickStyle,
@@ -3637,8 +3645,8 @@ function expandToggle(btn: Element | null): void {
   expandCounts.set(btn, n + 1);
   (btn as HTMLElement).click();
 }
-function expandAllFoldSessions(): void {
-  document.querySelectorAll(`${TOGGLE_SEL}[aria-expanded="false"]`).forEach(expandToggle);
+function expandAllFoldSessions(roots?: Element[]): void {
+  forEachInScope(roots, `${TOGGLE_SEL}[aria-expanded="false"]`, expandToggle);
 }
 function watchToggle(btn: Element): void {
   if (watchedToggles.has(btn)) return;
@@ -3649,8 +3657,8 @@ function watchToggle(btn: Element): void {
   mo.observe(btn, { attributes: true, attributeFilter: ['aria-expanded'] });
   toggleObservers.push(mo);
 }
-function watchAllToggles(): void {
-  document.querySelectorAll(TOGGLE_SEL).forEach(watchToggle);
+function watchAllToggles(roots?: Element[]): void {
+  forEachInScope(roots, TOGGLE_SEL, watchToggle);
 }
 
 // ---- mark AI continue rows (inherit previous sender's AI state) ----------
@@ -3775,8 +3783,8 @@ function clearWecomLinkState(anchor: HTMLAnchorElement): void {
   delete anchor.dataset.octoWecomTitleAdded;
 }
 
-function tagWecomLinks(): void {
-  document.querySelectorAll<HTMLAnchorElement>(WECOM_LINK_SEL).forEach((a) => {
+function tagWecomLinks(roots?: Element[]): void {
+  forEachInScope<HTMLAnchorElement>(roots, WECOM_LINK_SEL, (a) => {
     const kind = wecomKind(a.getAttribute('href') || '');
     const current = a.getAttribute('data-octo-wecom');
     if (!kind) {
@@ -3845,21 +3853,152 @@ const CLAMP_SEL = [
   '.wk-fold-msg-text',
 ].join(',');
 
-function applyClamp(): void {
-  document.querySelectorAll(CLAMP_SEL).forEach((el) => {
+/**
+ * Run `visit` over every match of `selector`, restricted to the changed subtrees
+ * when the sync was able to narrow them down.
+ *
+ * `root.querySelectorAll()` still evaluates ancestor conditions against the full
+ * document, so descendant selectors like `.wk-msg-row--send .wk-markdown` stay
+ * correct when scoped — only the *result set* is limited to the subtree.
+ */
+function forEachInScope<E extends Element>(
+  roots: Element[] | undefined,
+  selector: string,
+  visit: (el: E) => void,
+): void {
+  if (!roots) {
+    document.querySelectorAll<E>(selector).forEach(visit);
+    return;
+  }
+  // A root can itself be a match (a row inserted directly), and roots can
+  // overlap, so dedupe before visiting.
+  const seen = new Set<Element>();
+  for (const root of roots) {
+    if (!root.isConnected) continue;
+    if (root.matches(selector) && !seen.has(root)) {
+      seen.add(root);
+      visit(root as E);
+    }
+    root.querySelectorAll<E>(selector).forEach((el) => {
+      if (seen.has(el)) return;
+      seen.add(el);
+      visit(el);
+    });
+  }
+}
+
+/**
+ * Message bodies whose height we have already judged. Measuring means reading
+ * `scrollHeight`, which forces a synchronous layout, so we do it once per
+ * element instead of re-measuring every message on every sync.
+ *
+ * A `WeakSet` is deliberate: the conversation list recycles and drops thousands
+ * of rows over a long session, and anything holding strong references to them
+ * (a `ResizeObserver`, a `Set`) would leak them for the lifetime of the tab.
+ */
+let clampMeasured = new WeakSet<Element>();
+/** Elements whose size may have changed and need a fresh verdict. */
+let clampDirty = new Set<Element>();
+let clampInvalidatorsBound = false;
+let clampMediaLoadHandler: ((event: Event) => void) | null = null;
+let clampResizeHandler: (() => void) | null = null;
+
+/**
+ * Two things can change a message's height after we measured it: media inside it
+ * finishing load, and the viewport changing width (which re-wraps text).
+ *
+ * Both are handled with a fixed number of listeners rather than per-element
+ * observation, so cost and memory do not grow with conversation length.
+ */
+function bindClampInvalidators(): void {
+  if (clampInvalidatorsBound) return;
+  clampInvalidatorsBound = true;
+
+  // `load` does not bubble, so capture it at the document.
+  clampMediaLoadHandler = (event: Event) => {
+    const target = event.target as Element | null;
+    if (!target?.closest) return;
+    const host = target.closest<HTMLElement>(CLAMP_SEL);
+    // An already-clamped message can only grow further, so its verdict stands;
+    // re-dirtying it here would also spin against our own class writes.
+    if (!host || host.classList.contains('octo-clamp')) return;
+    clampDirty.add(host);
+    scheduleSync();
+  };
+  document.addEventListener('load', clampMediaLoadHandler, true);
+
+  // A width change re-wraps every message, so drop all verdicts and re-measure
+  // the candidates once. Debounced by the sync itself.
+  clampResizeHandler = () => {
+    clampMeasured = new WeakSet<Element>();
+    scheduleSync();
+  };
+  window.addEventListener('resize', clampResizeHandler);
+}
+
+function unbindClampInvalidators(): void {
+  if (clampMediaLoadHandler) {
+    document.removeEventListener('load', clampMediaLoadHandler, true);
+    clampMediaLoadHandler = null;
+  }
+  if (clampResizeHandler) {
+    window.removeEventListener('resize', clampResizeHandler);
+    clampResizeHandler = null;
+  }
+  clampInvalidatorsBound = false;
+}
+
+/**
+ * Decide which message bodies need the "展开全文" affordance.
+ *
+ * Reads and writes are split into two loops on purpose: interleaving a
+ * `scrollHeight` read with a `classList` write forces one layout *per message*,
+ * which is what made long conversations stutter. Batching gives a single layout
+ * for the whole pass.
+ */
+function applyClamp(roots?: Element[]): void {
+  bindClampInvalidators();
+
+  // Pass 1 (read-only): measure just the elements we have never judged or whose
+  // size changed, and record the verdict.
+  const verdicts: Array<{ el: HTMLElement; tall: boolean; wecom: boolean }> = [];
+  const consider = (el: HTMLElement) => {
+    if (clampMeasured.has(el) && !clampDirty.has(el)) return;
+
     // Never clamp a message that carries a 企业微信 card: the 240px limit cuts the
     // QR in half and drops the "展开全文" gradient right on top of it, leaving a
     // code nobody can scan. These messages are short anyway — it is the card that
     // makes them tall, not a wall of text.
-    if (el.querySelector('a[data-octo-wecom]')) {
-      el.classList.remove('octo-clamp', 'octo-expanded');
-      return;
-    }
-    const full = (el as HTMLElement).scrollHeight;
-    const tall = full > CLAMP_HEIGHT + 8;
+    const wecom = el.querySelector('a[data-octo-wecom]') != null;
+    verdicts.push({ el, wecom, tall: !wecom && el.scrollHeight > CLAMP_HEIGHT + 8 });
+  };
+
+  forEachInScope<HTMLElement>(roots, CLAMP_SEL, consider);
+  // Elements dirtied by a late image load may sit outside the changed subtrees.
+  clampDirty.forEach((el) => {
+    if (el.isConnected && el instanceof HTMLElement) consider(el);
+  });
+
+  clampDirty.clear();
+  if (verdicts.length === 0) return;
+
+  // Pass 2 (write-only): now that every measurement is done, mutate classes.
+  for (const { el, tall, wecom } of verdicts) {
     if (tall) el.classList.add('octo-clamp');
     else el.classList.remove('octo-clamp', 'octo-expanded');
-  });
+
+    // A WeCom card can be tagged after the first measurement, so keep such
+    // elements re-checkable rather than marking them settled.
+    if (wecom) clampMeasured.delete(el);
+    else clampMeasured.add(el);
+  }
+}
+
+/** Drop all clamp bookkeeping (used by teardown and on master switch off). */
+function resetClampState(): void {
+  unbindClampInvalidators();
+  clampMeasured = new WeakSet<Element>();
+  clampDirty = new Set<Element>();
 }
 
 let clickBound = false;
@@ -4153,8 +4292,22 @@ function debounce(fn: () => void, wait: number): () => void {
 
 let bodyObserver: MutationObserver | null = null;
 let syncing = false;
+/** Work the next debounced sync has to do, accumulated across mutation batches. */
+let pendingScope: SyncScope<Element> = EMPTY_SYNC_SCOPE;
 
-function sync(): void {
+/**
+ * Apply everything the current settings imply.
+ *
+ * `scope` narrows the work to what the observed mutations actually require. The
+ * theme reflections are always cheap attribute writes so they run
+ * unconditionally; the message passes walk every row in the conversation, so
+ * they only run when rows were added or removed. That is the difference between
+ * "unrelated DOM churn is free" and "every tooltip costs an O(messages) rescan".
+ *
+ * Passing a fully-populated scope (the default) forces a complete pass, which is
+ * what boot, theme switches and re-enable need.
+ */
+function sync(scope: SyncScope<Element> = FULL_SYNC_SCOPE): void {
   if (!started) return;
   // Re-entrancy + self-mutation guard: our own DOM writes below (attributes,
   // clamp classes, fold-expand clicks) would otherwise retrigger the body
@@ -4165,17 +4318,30 @@ function sync(): void {
   try {
     try { reflectTheme(currentThemeId); } catch { /* noop */ }
     try { reflectGlobalTheme(currentGlobalThemeId); } catch { /* noop */ }
-    try { watchAllToggles(); } catch { /* noop */ }
-    try { expandAllFoldSessions(); } catch { /* noop */ }
-    try { markAIContinueMessages(); } catch { /* noop */ }
-    // Must precede applyClamp(): the clamp skips messages carrying a 企业微信
-    // card, and it can only see them once the anchors are tagged. Tagging after
-    // clamping would clamp the card for one frame and un-clamp on the next.
-    try { tagWecomLinks(); } catch { /* noop */ }
-    try { applyClamp(); } catch { /* noop */ }
-    try { rollBotCardRarity(); } catch { /* noop */ }
-    try { bindBotCardTilt(); } catch { /* noop */ }
     try { syncBalls(); } catch { /* noop */ }
+
+    if (scope.messages) {
+      const roots = scope.roots;
+      try { watchAllToggles(roots); } catch { /* noop */ }
+      try { expandAllFoldSessions(roots); } catch { /* noop */ }
+      // Deliberately NOT scoped: the AI-continue chain is sequential over the
+      // whole list, so inserting one row can change the flag on rows after it.
+      try { markAIContinueMessages(); } catch { /* noop */ }
+      // Must precede applyClamp(): the clamp skips messages carrying a 企业微信
+      // card, and it can only see them once the anchors are tagged. Tagging after
+      // clamping would clamp the card for one frame and un-clamp on the next.
+      try { tagWecomLinks(roots); } catch { /* noop */ }
+      try { applyClamp(roots); } catch { /* noop */ }
+    } else {
+      // No structural change, but a late image load may still have dirtied a
+      // measured element; the pass early-exits when there is nothing to do.
+      try { applyClamp([]); } catch { /* noop */ }
+    }
+
+    if (scope.botCard) {
+      try { rollBotCardRarity(); } catch { /* noop */ }
+      try { bindBotCardTilt(); } catch { /* noop */ }
+    }
   } finally {
     if (bodyObserver && document.body) {
       bodyObserver.observe(document.body, { childList: true, subtree: true });
@@ -4184,33 +4350,45 @@ function sync(): void {
   }
 }
 
-const scheduleSync = debounce(sync, 120);
+const runPendingSync = (): void => {
+  const scope = pendingScope;
+  pendingScope = EMPTY_SYNC_SCOPE;
+  sync(scope);
+};
+
+const scheduleDebouncedSync = debounce(runPendingSync, 120);
 
 /**
- * When a mutation batch inserts bot-card nodes, roll the rarity SYNCHRONOUSLY
- * (before the next paint) instead of waiting out the debounce. Otherwise the
- * card would mount without its foil frame / corner badge for ~120ms and then
- * pop in. Everything else still rides the debounced sync.
+ * Queue a full document-wide sync. Used by settings changes and by the clamp
+ * invalidators, where we have no useful subtree to narrow to.
  */
-function mutationTouchesBotCard(records: MutationRecord[]): boolean {
-  const SEL = '.wk-bot-detail-content, .wk-bot-detail-section, .wk-bot-detail-modal';
-  for (const rec of records) {
-    for (const node of rec.addedNodes) {
-      if (node.nodeType !== 1) continue;
-      const el = node as HTMLElement;
-      if (el.matches(SEL) || el.querySelector('.wk-bot-detail-content, .wk-bot-detail-section')) {
-        return true;
-      }
-    }
-  }
-  return false;
+function scheduleSync(): void {
+  pendingScope = FULL_SYNC_SCOPE;
+  scheduleDebouncedSync();
+}
+
+/** Queue only the work a mutation batch implies, over only the subtrees it touched. */
+function scheduleScopedSync(scope: SyncScope<Element>): void {
+  pendingScope = mergeScopes(pendingScope, scope);
+  scheduleDebouncedSync();
 }
 
 function onBodyMutations(records: MutationRecord[]): void {
-  if (mutationTouchesBotCard(records)) {
+  const scope = classifyMutations<Node>(records);
+  // A bot card mounting must be stamped SYNCHRONOUSLY (before the next paint),
+  // otherwise the card renders bare for ~120ms and the foil frame / corner badge
+  // pop in afterwards. Everything else rides the debounce.
+  if (scope.botCard) {
     try { rollBotCardRarity(); } catch { /* noop */ }
   }
-  scheduleSync();
+  // Unrelated churn (tooltips, hover states, our own overlays) lands here with
+  // an empty scope and is dropped without touching the conversation.
+  if (isEmptyScope(scope)) return;
+  scheduleScopedSync({
+    messages: scope.messages,
+    botCard: scope.botCard,
+    roots: scope.roots as Element[] | undefined,
+  });
 }
 
 let started = false;
@@ -4272,6 +4450,8 @@ export function teardownBeautify(): void {
   toggleObservers.length = 0;
   watchedToggles = new WeakSet<Element>();
   expandCounts = new WeakMap<Element, number>();
+  resetClampState();
+  pendingScope = EMPTY_SYNC_SCOPE;
   if (reassertTimer) {
     clearTimeout(reassertTimer);
     reassertTimer = undefined;
