@@ -39,6 +39,17 @@ export const OCTO_SELECTORS = {
   foldMessageBody: '.wk-fold-msg-text',
   /** Message body in either context. */
   anyMessageBody: '.wk-markdown, .wk-fold-msg-text',
+  /** Row sub-parts, used when cloning a system row back into a normal one. */
+  messageRowSender: '.wk-msg-row-sender',
+  messageRowBody: '.wk-msg-row-body',
+  messageRowHeader: '.wk-msg-row-header',
+  messageRowContent: '.wk-msg-row-content',
+  messageRowTimestamp: '.wk-msg-row-timestamp',
+  messageAvatarImg: '.wk-msg-avatar-img',
+  /** Where a link shortcut is appended, in normal and folded contexts. */
+  linkShortcutHost: '.wk-msg-row-content, .wk-fold-msg-body',
+  /** Links inside a message body — the input to the link-card passes. */
+  messageBodyLinks: '.wk-markdown a[href], .wk-fold-msg-text a[href]',
   /** Expand/collapse control on a folded session card. */
   foldToggle: '.wk-fold-session-card-toggle',
   /** The message composer container. */
@@ -47,9 +58,32 @@ export const OCTO_SELECTORS = {
   botCardContent: '.wk-bot-detail-content',
   /** Bot profile card modal wrapper. */
   botCardModal: '.wk-bot-detail-modal',
+  /** A section inside the bot profile card. */
+  botCardSection: '.wk-bot-detail-section',
+  /** The tiltable shell of an open bot profile card. */
+  botCardShell: '.wk-bot-detail-modal .wk-modal-shell',
   /** AI marker badge on a row. */
   aiBadge: '.ai-badge',
 } as const;
+
+/**
+ * Message bodies eligible for the long-message clamp.
+ *
+ * The four row branches partition messages by AI / own / continuation so each
+ * gets the right bubble treatment; the target is always the message body. Kept
+ * here rather than inline so a class rename stays a one-file change.
+ *
+ * Note this selector is expensive — `:has()` plus chained `:not()` benchmarked
+ * ~19x slower than a plain class selector — so callers should scope it to a
+ * changed subtree rather than running it over the document. See octoSyncScope.
+ */
+export const CLAMP_CANDIDATE_SELECTOR = [
+  `${OCTO_SELECTORS.messageRow}:has(${OCTO_SELECTORS.aiBadge}) ${OCTO_SELECTORS.messageBody}`,
+  `${OCTO_SELECTORS.messageRowContinue}[data-ai-continue="true"] ${OCTO_SELECTORS.messageBody}`,
+  `${OCTO_SELECTORS.messageRowSend}:not(:has(${OCTO_SELECTORS.aiBadge})) ${OCTO_SELECTORS.messageBody}`,
+  `${OCTO_SELECTORS.messageRow}:not(${OCTO_SELECTORS.messageRowSend}):not(:has(${OCTO_SELECTORS.aiBadge})):not([data-ai-continue="true"]) ${OCTO_SELECTORS.messageBody}`,
+  OCTO_SELECTORS.foldMessageBody,
+].join(',');
 
 export type OctoSelectorKey = keyof typeof OCTO_SELECTORS;
 

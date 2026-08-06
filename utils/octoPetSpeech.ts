@@ -162,14 +162,14 @@ function collectMessageItems(node: Node): HTMLElement[] {
 
 function readSpeechFromItem(item: HTMLElement): PetSpeech | null {
   if (!item.closest(MESSAGE_AREA_SELECTOR)) return null;
-  const row = item.querySelector<HTMLElement>('.wk-msg-row');
-  const senderFallback = item.querySelector<HTMLElement>('.wk-msg-row-sender')
+  const row = item.querySelector<HTMLElement>(OCTO_SELECTORS.messageRow);
+  const senderFallback = item.querySelector<HTMLElement>(OCTO_SELECTORS.messageRowSender)
     ?.textContent?.trim();
   return extractPetSpeech(getMessageWrapFromItem(item), {
     sentBySelf: row?.classList.contains('wk-msg-row--send') === true,
     system:
       item.classList.contains('wk-message-item-system') ||
-      item.querySelector('.wk-message-system') != null,
+      item.querySelector(OCTO_SELECTORS.messageSystem) != null,
     senderFallback,
   });
 }

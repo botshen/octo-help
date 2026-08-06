@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_SYNC_SCOPE,
-  FULL_SYNC_SCOPE,
   MAX_SCOPED_ROOTS,
   classifyMutations,
   isEmptyScope,

@@ -24,7 +24,6 @@ import { getMessageWrapFromItem } from '@/utils/octoMessageFiber';
 import { startOctoPetSpeech } from '@/utils/octoPetSpeech';
 import { startOctoGithubLinks } from '@/utils/octoGithubLink';
 import {
-  HEALTHY_COMPAT_REPORT,
   OCTO_SELECTORS,
   checkOctoCompat,
   documentCompatProbe,
@@ -185,7 +184,7 @@ export default defineUnlistedScript(() => {
       if (oInner && oInner.fromUID === uid) {
         // Prefer the name on the fiber; fall back to the rendered sender text.
         if (oInner.from && oInner.from.title) return oInner.from.title as string;
-        const s = it.querySelector('.wk-msg-row-sender');
+        const s = it.querySelector(OCTO_SELECTORS.messageRowSender);
         const txt = s && s.textContent && s.textContent.trim();
         if (txt) return txt;
       }
@@ -203,7 +202,7 @@ export default defineUnlistedScript(() => {
     let fallback: HTMLElement | null = null;
     for (const row of rows) {
       if (row.classList.contains(CLONE_CLASS)) continue;
-      if (!row.querySelector('.wk-msg-row-body')) continue;
+      if (!row.querySelector(OCTO_SELECTORS.messageRowBody)) continue;
       fallback ??= row;
       const isSend = row.classList.contains('wk-msg-row--send');
       // Prefer a non-"continue" donor of the same side (has avatar + header).
@@ -246,7 +245,7 @@ export default defineUnlistedScript(() => {
     clone.classList.remove('wk-msg-row--send', 'wk-msg-row--continue');
 
     // Avatar (always correct — keyed on fromUID)
-    const img = clone.querySelector<HTMLImageElement>('.wk-msg-avatar-img');
+    const img = clone.querySelector<HTMLImageElement>(OCTO_SELECTORS.messageAvatarImg);
     const senderName =
       (inner.from && inner.from.title) || resolveSenderName(inner.fromUID) || '';
     if (img && inner.fromUID) {
@@ -256,17 +255,17 @@ export default defineUnlistedScript(() => {
     // Sender name — revoked messages have a null `from`, so never trust the
     // cloned donor's name; set the resolved name, or blank it out so we never
     // show a different person's name on a revoked message.
-    const sender = clone.querySelector('.wk-msg-row-sender');
+    const sender = clone.querySelector(OCTO_SELECTORS.messageRowSender);
     if (sender) sender.textContent = senderName;
     // Strip the donor's AI badge — it reflects the donor's sender, not this
     // revoked message's, and would falsely tag e.g. a human message as AI.
     clone.querySelectorAll('.ai-badge').forEach((b) => b.remove());
     // Timestamp
-    const ts = clone.querySelector('.wk-msg-row-timestamp');
+    const ts = clone.querySelector(OCTO_SELECTORS.messageRowTimestamp);
     if (ts && inner.timestamp) ts.textContent = formatTimestamp(inner.timestamp);
 
     // Body — render based on recalled content kind.
-    const body = clone.querySelector('.wk-msg-row-body');
+    const body = clone.querySelector(OCTO_SELECTORS.messageRowBody);
     if (body) {
       body.textContent = '';
       const textContent = document.createElement('div');
@@ -309,9 +308,9 @@ export default defineUnlistedScript(() => {
     const badge = document.createElement('span');
     badge.className = BADGE_CLASS;
     badge.textContent = '已撤回';
-    const header = clone.querySelector('.wk-msg-row-header');
+    const header = clone.querySelector(OCTO_SELECTORS.messageRowHeader);
     if (header) header.appendChild(badge);
-    else clone.querySelector('.wk-msg-row-content')?.prepend(badge);
+    else clone.querySelector(OCTO_SELECTORS.messageRowContent)?.prepend(badge);
 
     // Hide native tip (reversibly) and neutralize the system-row layout the
     // item still gets from octo's `:has(.wk-message-system)` rule (centered +

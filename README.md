@@ -25,17 +25,53 @@
 
 ## 结构
 
-- `entrypoints/octo.content.ts` — 内容脚本（ISOLATED）：读 `storage`、注入 MAIN-world 脚本、转发「撤回开关」与「主题」状态。
-- `entrypoints/octo-main-world.ts` — MAIN-world 脚本：撤回还原（Fiber 反查 + 克隆气泡 + `MutationObserver`），并启动美化引擎。
-- `utils/octoBeautify.ts` — 美化 + 换肤引擎（内嵌 CSS + 主题模型 + 折叠展开 / AI 连续标记 / 限高展开 / 去抖 sync）。
-- `utils/octoRecall.ts` — 共享常量（storage key、postMessage 协议）。
+- `entrypoints/octo.content.ts` — 内容脚本（ISOLATED）：读 `storage`、注入 MAIN-world 脚本、转发设置状态，并持久化页面回传的宠物位置与兼容性报告。体积严格控制在 15 KB：不得 import 美化引擎。
+- `entrypoints/octo-main-world.ts` — MAIN-world 脚本：撤回还原（Fiber 反查 + 克隆气泡 + `MutationObserver`）、启动美化引擎、运行 DOM 兼容性自检。
+- `entrypoints/octo-kick-world.ts` — 按需注入的 MAIN-world 脚本，封装 pixi.js 射门特效（见下方「体积与性能约束」）。
+- `utils/octoBeautify.ts` — 美化 + 换肤引擎（主题模型 / 折叠展开 / AI 连续标记 / 限高展开 / 作用域化 sync）。
+- `utils/octoBeautify.css` — 美化样式表，由 `?raw` 原文字导入（**不要**改成 `?inline`，原因见文件顶部注释）。
+- `utils/octoThemeCatalog.ts` — 主题/皮肤/射门样式的纯数据目录，**零 import**。Side Panel 和内容脚本只靠它拿默认值，不用拖入引擎。
+- `utils/octoSelectors.ts` — **所有 JS 侧 Octo DOM 选择器的单一来源**，兼 DOM 兼容性自检。新增选择器请加在这里。
+- `utils/octoSyncScope.ts` — mutation 分类：判定一批 DOM 变动需要哪些 pass、可限定在哪些子树。
+- `utils/octoFullscreenKickLazy.ts` — pixi 射门特效的惰加载门面（签名与同步版一致）。
+- `utils/octoFullscreenKickPixi.ts` — pixi.js 实现，只能由 `octo-kick-world.ts` 引入。
+- `utils/octoRecall.ts` — 共享常量（目标域名、storage key、postMessage 协议）。
 - `utils/octoPet.ts` — 宠物包大小、路径、manifest 与图片校验及本地解析。
+- `utils/octoPetState.ts` — 宠物状态校验器。兼任安全边界：页面可以伪造 postMessage，这里的校验决定伪造消息能否造成危害。
 - `utils/octoPetRenderer.ts` — 桌面宠物 overlay、spritesheet 动画与拖拽交互。
 - `utils/octoBuiltInCompanion.ts` — 四只内置输入框宠物的巡游、定位和消息唤醒。
 - `utils/octoGithubLink.ts` — GitHub URL 边界识别、分类和消息快捷入口。
 - `utils/octoComposerEnhancer.ts` — 三行舒适输入框样式和完整还原。
 - `utils/octoPetSpeech.ts` — 监听当前会话新增消息、提取短摘要、过滤自己/系统/撤回/重复消息。
-- `entrypoints/sidepanel/` — 侧边栏完整设置：全局开关、主题、特效、球星、桌宠和撤回消息设置。
+- `entrypoints/sidepanel/` — 侧边栏完整设置：全局开关、主题、特效、球星、桌宠和撤回消息设置，并展示兼容性告警。
+- `assets/player-source/` — 球星水印源图，仅供 `scripts/split-player-animation-assets.py` 使用，**不打包进扩展**。
+
+## 体积与性能约束
+
+这些不是建议，而是会被回归的约束：
+
+- **pixi.js 不得进入常驻脚本**。pixi + pixi-filters 约 540 KB，只有选了球星水印的用户需要。它住在独立的 `octo-kick-world.js`，由 `octoFullscreenKickLazy` 在首次启用时请求内容脚本 `injectScript` 注入（WXT 推荐的 main-world 模式）。
+- **内容脚本不得 import 美化引擎**。它只需转发设置；曾因为 import 三个默认主题常量而把整个 pixi 拖进去（231 KB 死代码）。默认值请从 `octoThemeCatalog` 取。
+- **sync 的代价不得随会话长度增长**。消息相关的 pass 靠 `octoSyncScope` 限定在变动子树内；clamp 的测高读写分离并用 `WeakSet` 记忆结果。实测：3000 条消息下单条新消息的处理从 9.1 ms 降到 1.0 ms。
+- **不要用 `ResizeObserver` 观察消息元素**。它对目标持强引用，会把被回收的上千条消息钉在内存里。clamp 的失效信号用的是 document 级 `load` 捕获 + window `resize`。
+
+## 安全模型
+
+MAIN world 与页面共享同一个 realm，`window.postMessage` **不是可信通道** —— `event.source !== window` 加一个 `source` 字段不构成认证，Octo 页面上的任何脚本都能伪造完全一样的消息。
+
+因此原则是「使伪造消息无害」，而不是「防止伪造消息到达」：
+
+- 每个 MAIN-world 入口都要重新校验收到的字段，不能依赖内容脚本已经校验过。
+- 任何来自消息的 URL 必须收敛到安全集合：宠物图只接受 `data:image/*;base64,`，水印图由 `extensionAssetUrl()` 钉住协议与路径。否则页面可以借插件之手向外部发请求（装机探测 + 内网外发通道）。
+- 主题类参数统一过 `*ById()` 白名单，未知值回退默认而不是直接 `setAttribute`。
+- 页面上不用 `innerHTML` 拼接（MAIN world 的 innerHTML 以页面权限执行）。
+
+## 兼容性自检
+
+Octo 是我们不控制的移动目标。改版重命名类名时，受影响的功能会静默失效，用户只会觉得「插件坏了」。MAIN world 在启动后的 1.5 / 5 / 15 秒探测关键选择器，并把结论写入 storage，Side Panel 据此提示具体哪项能力失效。
+
+避免误报是设计重点：应用外壳未渲染前结论为「不确定」且不报告；每项检查声明前置条件，前置缺失时不连带报告其下游检查；仅在结论变化时写入。
+
 
 ## 开发
 

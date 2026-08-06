@@ -1,4 +1,5 @@
 import type { PlayerWatermarkId } from './octoRecall';
+import { OCTO_SELECTORS } from './octoSelectors';
 import {
   bezierPoint,
   clamp,
@@ -570,7 +571,7 @@ function releaseParticle(particle: Particle): void {
 
 function getPlayerGeometry(): { start: Point; ballSize: number } | null {
   if (!playerId) return null;
-  const host = document.querySelector<HTMLElement>('.wk-conversation-content');
+  const host = document.querySelector<HTMLElement>(OCTO_SELECTORS.conversation);
   if (!host) return null;
   const rect = host.getBoundingClientRect();
   if (rect.width <= 0 || rect.height <= 0) return null;

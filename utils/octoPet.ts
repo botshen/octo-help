@@ -102,7 +102,7 @@ export async function parsePetPackage(file: Blob): Promise<StoredDesktopPet> {
     manifestValue = JSON.parse(manifestText);
   } catch (error) {
     if (error instanceof Error && error.message.includes('64 KB')) throw error;
-    throw new Error('pet.json 不是有效的 JSON');
+    throw new Error('pet.json 不是有效的 JSON', { cause: error });
   }
 
   const manifest = parseDesktopPetManifest(manifestValue);
@@ -138,7 +138,7 @@ export async function parsePetPackage(file: Blob): Promise<StoredDesktopPet> {
     } catch (error) {
       if (error instanceof Error && error.message.startsWith('spritesheet')) throw error;
       if (error instanceof Error && error.message.startsWith('Codex')) throw error;
-      throw new Error('spritesheet 图片已损坏、尺寸不符或无法解码');
+      throw new Error('spritesheet 图片已损坏、尺寸不符或无法解码', { cause: error });
     }
   }
 

@@ -34,7 +34,7 @@ const MESSAGE_SELECTOR = [
 /** Bot profile card nodes; these need a synchronous rarity roll, pre-paint. */
 const BOT_CARD_SELECTOR = [
   OCTO_SELECTORS.botCardContent,
-  '.wk-bot-detail-section',
+  OCTO_SELECTORS.botCardSection,
   OCTO_SELECTORS.botCardModal,
 ].join(', ');
 

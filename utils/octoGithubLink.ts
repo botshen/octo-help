@@ -191,7 +191,7 @@ function ensureStyle(): void {
 
 function renderMessageLinks(item: HTMLElement): void {
   const content = item.querySelector<HTMLElement>(CONTENT_SELECTOR);
-  const target = item.querySelector<HTMLElement>('.wk-msg-row-content, .wk-fold-msg-body');
+  const target = item.querySelector<HTMLElement>(OCTO_SELECTORS.linkShortcutHost);
   const existing = item.querySelector<HTMLElement>(`.${ROOT_CLASS}`);
   if (!content || !target) {
     existing?.remove();

@@ -1,6 +1,7 @@
 import type { PlayerWatermarkId } from './octoRecall';
 import qrcode from 'qrcode-generator';
 import BEAUTIFY_CSS from './octoBeautify.css?raw';
+import { CLAMP_CANDIDATE_SELECTOR, OCTO_SELECTORS } from './octoSelectors';
 import {
   DEFAULT_GLOBAL_THEME,
   DEFAULT_KICK_STYLE,
@@ -232,7 +233,7 @@ function watchThemeAttr(): void {
 
 // ---- fold sessions: auto-expand + guard against re-collapse --------------
 
-const TOGGLE_SEL = '.wk-fold-session-card-toggle';
+const TOGGLE_SEL = OCTO_SELECTORS.foldToggle;
 let watchedToggles = new WeakSet<Element>();
 const toggleObservers: MutationObserver[] = [];
 
@@ -267,7 +268,7 @@ function watchAllToggles(roots?: Element[]): void {
 // ---- mark AI continue rows (inherit previous sender's AI state) ----------
 
 function markAIContinueMessages(): void {
-  const allRows = document.querySelectorAll('.wk-msg-row');
+  const allRows = document.querySelectorAll(OCTO_SELECTORS.messageRow);
   let currentSenderIsAI = false;
   allRows.forEach((row) => {
     if (row.classList.contains('wk-msg-row--continue')) {
@@ -298,7 +299,7 @@ function markAIContinueMessages(): void {
  * and only changed values are written (idempotent under the sync loop).
  */
 const WECOM_HOST = 'work.weixin.qq.com';
-const WECOM_LINK_SEL = '.wk-markdown a[href], .wk-fold-msg-text a[href]';
+const WECOM_LINK_SEL = OCTO_SELECTORS.messageBodyLinks;
 
 /**
  * Classify an href: '' when it isn't a 企业微信 link, otherwise which kind.
@@ -429,7 +430,7 @@ function bindWecomCardClicks(): void {
     if (!target || !target.closest) return;
     const card = target.closest('a[data-octo-wecom="meeting"]') as HTMLAnchorElement | null;
     if (!card) return;
-    const host = card.closest('.wk-markdown, .wk-fold-msg-text');
+    const host = card.closest(OCTO_SELECTORS.anyMessageBody);
     const code = parseMeetingCode(host?.textContent || '');
     if (!code) return; // no code to join with -> let the link open as usual
     event.preventDefault();
@@ -448,13 +449,7 @@ function removeWecomCardClicks(): void {
 
 // ---- single-message height clamp + click to expand -----------------------
 
-const CLAMP_SEL = [
-  '.wk-msg-row:has(.ai-badge) .wk-markdown',
-  '.wk-msg-row--continue[data-ai-continue="true"] .wk-markdown',
-  '.wk-msg-row--send:not(:has(.ai-badge)) .wk-markdown',
-  '.wk-msg-row:not(.wk-msg-row--send):not(:has(.ai-badge)):not([data-ai-continue="true"]) .wk-markdown',
-  '.wk-fold-msg-text',
-].join(',');
+const CLAMP_SEL = CLAMP_CANDIDATE_SELECTOR;
 
 /**
  * Run `visit` over every match of `selector`, restricted to the changed subtrees
@@ -670,8 +665,14 @@ function playGachaReveal(rarity: Rarity): void {
   const fx = document.createElement('div');
   fx.className = 'octo-gacha-fx';
   fx.setAttribute('data-octo-rarity', rarity);
-  fx.innerHTML =
-    '<div class="octo-gacha-flash"></div><div class="octo-gacha-rays"></div><div class="octo-gacha-spark"></div>';
+  // Built node-by-node rather than with innerHTML: this runs in the page MAIN
+  // world, so an innerHTML template here becomes an injection sink the moment
+  // any part of it stops being a literal.
+  for (const part of ['flash', 'rays', 'spark']) {
+    const layer = document.createElement('div');
+    layer.className = `octo-gacha-${part}`;
+    fx.appendChild(layer);
+  }
   (document.body || document.documentElement).appendChild(fx);
   window.setTimeout(() => fx.remove(), 1300);
 }
@@ -688,7 +689,7 @@ function isRarity(value: string | null): value is Rarity {
 
 function rollBotCardRarity(): void {
   document
-    .querySelectorAll<HTMLElement>('.wk-bot-detail-modal .wk-modal-shell')
+    .querySelectorAll<HTMLElement>(OCTO_SELECTORS.botCardShell)
     .forEach((shell) => {
       const existing = shell.getAttribute('data-octo-rarity');
       let rarity: Rarity;
@@ -704,7 +705,7 @@ function rollBotCardRarity(): void {
         }
       }
       // Mirror onto the content node — the corner badge ::after reads it via attr().
-      const content = shell.querySelector('.wk-bot-detail-content');
+      const content = shell.querySelector(OCTO_SELECTORS.botCardContent);
       if (content && content.getAttribute('data-octo-rarity') !== rarity) {
         content.setAttribute('data-octo-rarity', rarity);
       }
@@ -727,7 +728,7 @@ const botTiltBound = new WeakSet<HTMLElement>();
 function bindBotCardTilt(): void {
   if (prefersReducedMotion()) return;
   document
-    .querySelectorAll<HTMLElement>('.wk-bot-detail-modal .wk-modal-shell')
+    .querySelectorAll<HTMLElement>(OCTO_SELECTORS.botCardShell)
     .forEach((el) => {
       if (botTiltBound.has(el)) return;
       botTiltBound.add(el);
@@ -751,13 +752,9 @@ function bindBotCardTilt(): void {
 // ---- worldcup soccer ball: real DOM node + 5 selectable kick styles -------
 
 // Bubbles that carry a corner ball under the worldcup skin.
-const BALL_HOST_SEL = [
-  '.wk-msg-row:has(.ai-badge) .wk-markdown',
-  '.wk-msg-row--continue[data-ai-continue="true"] .wk-markdown',
-  '.wk-msg-row--send:not(:has(.ai-badge)) .wk-markdown',
-  '.wk-msg-row:not(.wk-msg-row--send):not(:has(.ai-badge)):not([data-ai-continue="true"]) .wk-markdown',
-  '.wk-fold-msg-text',
-].join(',');
+// Same element set as the clamp: both hang off a message body. Previously this
+// was a verbatim copy of the clamp selector, so the two could drift apart.
+const BALL_HOST_SEL = CLAMP_CANDIDATE_SELECTOR;
 
 const BALL_CLASS = 'octo-wc-ball';
 const kickingBalls = new WeakSet<HTMLElement>();
