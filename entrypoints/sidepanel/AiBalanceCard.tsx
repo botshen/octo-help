@@ -14,7 +14,8 @@ import {
   CUSTOM_PRESET_ID,
   DEFAULT_AI_BALANCE_CONFIG,
   MIN_REFRESH_MINUTES,
-  applyPresetKey,
+  applyPreset,
+  baseUrlOf,
   findAiBalancePreset,
   formatBalance,
   formatPercent,
@@ -158,6 +159,8 @@ export function AiBalanceBanner() {
 interface FormState {
   enabled: boolean;
   presetId: string;
+  /** Where the user's own gateway lives. Presets ship a path, never a host. */
+  baseUrl: string;
   apiKey: string;
   url: string;
   method: 'GET' | 'POST';
@@ -178,8 +181,9 @@ function emptyForm(): FormState {
   return {
     enabled: true,
     presetId: preset.id,
+    baseUrl: '',
     apiKey: '',
-    url: preset.urlTemplate,
+    url: '',
     method: preset.method,
     headersText: stringifyHeaders(preset.headers),
     path: preset.path,
@@ -198,6 +202,7 @@ function formFromConfig(config: AiBalanceConfig): FormState {
   return {
     enabled: config.enabled,
     presetId: config.presetId,
+    baseUrl: baseUrlOf(config.url),
     // The key is not recoverable from a saved config (it is embedded in the URL
     // or a header), and re-deriving it would mean guessing. Editing shows the
     // real fields instead of pretending to know the secret.
@@ -220,8 +225,8 @@ function formFromConfig(config: AiBalanceConfig): FormState {
 /** Turn the form into the shape the validator accepts. */
 function draftFromForm(form: FormState): AiBalanceConfig {
   const preset = findAiBalancePreset(form.presetId);
-  const usingPreset = preset != null && form.apiKey.trim() !== '';
-  const filled = usingPreset ? applyPresetKey(preset, form.apiKey) : null;
+  const usingPreset = preset != null && form.apiKey.trim() !== '' && form.baseUrl.trim() !== '';
+  const filled = usingPreset ? applyPreset(preset, form.baseUrl, form.apiKey) : null;
   return {
     enabled: form.enabled,
     presetId: form.presetId,
@@ -407,7 +412,6 @@ export function AiBalanceCard({
     }
     patch({
       presetId: id,
-      url: nextPreset.urlTemplate,
       method: nextPreset.method,
       headersText: stringifyHeaders(nextPreset.headers),
       path: nextPreset.path,
@@ -513,6 +517,22 @@ export function AiBalanceCard({
               </select>
             </div>
           </label>
+
+          {preset && (
+            <label className="balance-field">
+              <span>网关地址</span>
+              <input
+                type="url"
+                autoComplete="off"
+                spellCheck={false}
+                placeholder={preset.baseHint}
+                value={form.baseUrl}
+                disabled={disabled || busy}
+                onChange={(event) => patch({ baseUrl: event.currentTarget.value })}
+              />
+              {problemFor('url') && <small className="balance-problem">{problemFor('url')}</small>}
+            </label>
+          )}
 
           {preset && (
             <label className="balance-field">

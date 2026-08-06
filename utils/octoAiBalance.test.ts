@@ -3,7 +3,8 @@ import {
   AI_BALANCE_PRESETS,
   DEFAULT_AI_BALANCE_CONFIG,
   MIN_REFRESH_MINUTES,
-  applyPresetKey,
+  applyPreset,
+  baseUrlOf,
   clampRefreshMinutes,
   describeAiBalanceForPage,
   extractBalance,
@@ -176,19 +177,44 @@ describe('parseStoredAiBalanceConfig', () => {
   });
 });
 
-describe('applyPresetKey', () => {
-  it('puts the key where the preset expects it', () => {
-    const gateway = AI_BALANCE_PRESETS[0];
-    expect(applyPresetKey(gateway, ' sk-abc ')).toEqual({
+describe('applyPreset', () => {
+  it('combines the preset shape with the user\'s own gateway and key', () => {
+    // Presets carry a path, never a host: the deployment URL belongs to the user
+    // and has no business being in this repository.
+    expect(applyPreset(AI_BALANCE_PRESETS[0], 'https://gateway.example.com', ' sk-abc ')).toEqual({
       url: 'https://gateway.example.com/api/v1/key/info?key=sk-abc',
       headers: {},
     });
     const bearer = AI_BALANCE_PRESETS[1];
-    expect(applyPresetKey(bearer, 'sk-abc').headers).toEqual({ Authorization: 'Bearer sk-abc' });
+    expect(applyPreset(bearer, 'https://gateway.example.com', 'sk-abc')?.headers).toEqual({
+      Authorization: 'Bearer sk-abc',
+    });
   });
 
   it('encodes the key so a pasted stray character cannot alter the query', () => {
-    expect(applyPresetKey(AI_BALANCE_PRESETS[0], 'a&b=c').url).toContain('key=a%26b%3Dc');
+    expect(
+      applyPreset(AI_BALANCE_PRESETS[0], 'https://gateway.example.com', 'a&b=c')?.url,
+    ).toContain('key=a%26b%3Dc');
+  });
+
+  it('tolerates a trailing slash or a sub-path in the gateway field', () => {
+    expect(applyPreset(AI_BALANCE_PRESETS[0], 'https://gateway.example.com/', 'k')?.url).toBe(
+      'https://gateway.example.com/api/v1/key/info?key=k',
+    );
+  });
+
+  it('returns null instead of building a broken request', () => {
+    expect(applyPreset(AI_BALANCE_PRESETS[0], 'not a url', 'k')).toBeNull();
+    expect(applyPreset(AI_BALANCE_PRESETS[0], '', 'k')).toBeNull();
+  });
+});
+
+describe('baseUrlOf', () => {
+  it('recovers the gateway so editing shows it pre-filled', () => {
+    expect(baseUrlOf('https://gateway.example.com/api/v1/key/info?key=sk-1')).toBe(
+      'https://gateway.example.com',
+    );
+    expect(baseUrlOf('nonsense')).toBe('');
   });
 });
 

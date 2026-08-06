@@ -17,8 +17,18 @@ import type {
 export interface AiBalancePreset {
   id: string;
   label: string;
-  /** `{key}` is replaced by the user's API key. */
-  urlTemplate: string;
+  /**
+   * Request path relative to the user's own gateway, with `{key}` replaced by
+   * their API key.
+   *
+   * Deliberately a path and not a full URL: the host is somebody's internal
+   * deployment, and hard-coding one into a public repository publishes their
+   * infrastructure. A preset describes the *shape* of an API; the user supplies
+   * where it lives (once).
+   */
+  pathTemplate: string;
+  /** Placeholder for the gateway field, never a real host. */
+  baseHint: string;
   method: 'GET' | 'POST';
   headers: Record<string, string>;
   path: string;
@@ -29,7 +39,7 @@ export interface AiBalancePreset {
 }
 
 /**
- * Known endpoints, so the common case is "paste one API key".
+ * Known API shapes, so the common case is "paste a gateway URL and a key".
  *
  * `llm-gateway` matches the deployment this feature was built for: the key goes
  * in the query string and the number sits on `data.remain_quota_usd`.
@@ -37,8 +47,9 @@ export interface AiBalancePreset {
 export const AI_BALANCE_PRESETS: readonly AiBalancePreset[] = [
   {
     id: 'llm-gateway',
-    label: 'LLM Gateway',
-    urlTemplate: 'https://gateway.example.com/api/v1/key/info?key={key}',
+    label: 'LLM Gateway 自建网关',
+    pathTemplate: '/api/v1/key/info?key={key}',
+    baseHint: 'https://gateway.example.com',
     method: 'GET',
     headers: {},
     path: 'data.remain_quota_usd',
@@ -49,7 +60,8 @@ export const AI_BALANCE_PRESETS: readonly AiBalancePreset[] = [
   {
     id: 'openai-compatible',
     label: 'OneAPI / NewAPI',
-    urlTemplate: 'https://your-gateway.example.com/api/v1/dashboard/billing/subscription',
+    pathTemplate: '/api/v1/dashboard/billing/subscription',
+    baseHint: 'https://gateway.example.com',
     method: 'GET',
     headers: { Authorization: 'Bearer {key}' },
     path: 'hard_limit_usd',
@@ -91,17 +103,42 @@ export function findAiBalancePreset(id: string): AiBalancePreset | null {
   return AI_BALANCE_PRESETS.find((preset) => preset.id === id) ?? null;
 }
 
-/** Fill a preset's URL and headers with the user's key. */
-export function applyPresetKey(
+/**
+ * Build the request from a preset plus the two things only the user knows: where
+ * their gateway lives and their key. Returns null when the base URL is unusable,
+ * so the caller can point at the field instead of building a broken request.
+ */
+export function applyPreset(
   preset: AiBalancePreset,
+  baseUrl: string,
   key: string,
-): { url: string; headers: Record<string, string> } {
-  const trimmed = key.trim();
+): { url: string; headers: Record<string, string> } | null {
+  const trimmedKey = key.trim();
   const headers: Record<string, string> = {};
   for (const [name, value] of Object.entries(preset.headers)) {
-    headers[name] = value.replaceAll('{key}', trimmed);
+    headers[name] = value.replaceAll('{key}', trimmedKey);
   }
-  return { url: preset.urlTemplate.replaceAll('{key}', encodeURIComponent(trimmed)), headers };
+  let url: string;
+  try {
+    // `new URL(path, base)` keeps the user's base path if they pasted one, and
+    // rejects anything that is not a URL at all.
+    url = new URL(
+      preset.pathTemplate.replaceAll('{key}', encodeURIComponent(trimmedKey)),
+      baseUrl.trim(),
+    ).toString();
+  } catch {
+    return null;
+  }
+  return { url, headers };
+}
+
+/** Origin of a saved URL, so editing can show the gateway field pre-filled. */
+export function baseUrlOf(url: string): string {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
 }
 
 // ---- config validation ----------------------------------------------------
@@ -167,7 +204,7 @@ export function validateAiBalanceConfig(
   // https only: the key travels in this request, and a downgraded http endpoint
   // would put it on the wire in clear text.
   if (!url || url.protocol !== 'https:') {
-    problems.push({ field: 'url', message: '请填写完整的 https:// 接口地址' });
+    problems.push({ field: 'url', message: '请填写完整的 https:// 网关地址' });
   }
 
   if (!isSafeJsonPath(input.path)) {
