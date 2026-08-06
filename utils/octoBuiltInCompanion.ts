@@ -6,12 +6,16 @@ const STYLE_ID = 'octo-built-in-companion-style';
 const COMPOSER_SELECTOR = OCTO_SELECTORS.composer;
 const SPEECH_DURATION_MS = 5_000;
 
+// `facesLeft` describes how the glyph is drawn, not how it moves: the parade
+// always walks left → right, so a glyph whose head points left has to be
+// mirrored or it reads as walking backwards. Emoji fonts don't agree on a
+// canonical orientation, so this is per-companion data rather than a guess.
 const COMPANIONS: Record<
   BuiltInCompanionId,
-  { emoji: string; label: string; duration: number }
+  { emoji: string; label: string; duration: number; facesLeft?: boolean }
 > = {
-  ant: { emoji: '🐜', label: '蚂蚁小队', duration: 13 },
-  snail: { emoji: '🐌', label: '蜗牛巡游', duration: 22 },
+  ant: { emoji: '🐜', label: '蚂蚁小队', duration: 13, facesLeft: true },
+  snail: { emoji: '🐌', label: '蜗牛巡游', duration: 34 },
   wizard: { emoji: '🧙', label: '飞行巫师', duration: 15 },
   zombie: { emoji: '🧟', label: '散步僵尸', duration: 18 },
 };
@@ -77,7 +81,7 @@ function ensureStyle(): void {
       animation-delay: -340ms;
     }
     #${ROOT_ID}[data-companion='snail'] .octo-companion-pet {
-      animation-duration: 900ms;
+      animation-duration: 1500ms;
     }
     #${ROOT_ID}[data-companion='snail'] .octo-companion-pet:nth-child(1) {
       font-size: 25px;
@@ -122,19 +126,24 @@ function ensureStyle(): void {
       to { left: calc(100% + 12px); }
     }
     @keyframes octo-companion-step {
-      from { transform: translateY(0) rotate(-3deg); }
-      to { transform: translateY(-4px) rotate(3deg); }
+      from { transform: scaleX(var(--octo-companion-facing, 1)) translateY(0) rotate(-3deg); }
+      to { transform: scaleX(var(--octo-companion-facing, 1)) translateY(-4px) rotate(3deg); }
     }
     @keyframes octo-companion-float {
-      from { transform: translateY(1px) rotate(-4deg); }
-      to { transform: translateY(-7px) rotate(4deg); }
+      from { transform: scaleX(var(--octo-companion-facing, 1)) translateY(1px) rotate(-4deg); }
+      to { transform: scaleX(var(--octo-companion-facing, 1)) translateY(-7px) rotate(4deg); }
     }
     @media (prefers-reduced-motion: reduce) {
       #${ROOT_ID} .octo-companion-parade {
         left: 12px;
         animation: none;
       }
-      #${ROOT_ID} .octo-companion-pet { animation: none; }
+      #${ROOT_ID} .octo-companion-pet {
+        animation: none;
+        /* The mirror lives in the keyframes, so a companion standing still
+           still has to be told which way it faces. */
+        transform: scaleX(var(--octo-companion-facing, 1));
+      }
     }
   `;
   (document.head || document.documentElement).appendChild(style);
@@ -203,6 +212,11 @@ export function getCompanionPassDurationMs(id: BuiltInCompanionId): number {
   return COMPANIONS[id].duration * 1_000;
 }
 
+/** `1` walks with the glyph as drawn, `-1` mirrors it to face the march. */
+export function getCompanionFacing(id: BuiltInCompanionId): 1 | -1 {
+  return COMPANIONS[id].facesLeft ? -1 : 1;
+}
+
 function wake(duration?: number): void {
   if (!activeId) return;
   setActive(true);
@@ -261,6 +275,7 @@ export function applyBuiltInCompanion(id: BuiltInCompanionId | null): void {
   root.dataset.active = 'false';
   root.setAttribute('aria-label', companion.label);
   root.style.setProperty('--octo-companion-duration', `${companion.duration}s`);
+  root.style.setProperty('--octo-companion-facing', String(getCompanionFacing(id)));
 
   // Built with DOM APIs rather than innerHTML. The emoji is a built-in constant
   // today, but the moment a custom companion glyph becomes configurable an
