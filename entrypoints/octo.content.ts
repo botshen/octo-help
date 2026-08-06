@@ -12,6 +12,7 @@ import {
   MESSI_WATERMARK_STORAGE_KEY,
   MESSAGE_SOURCE,
   MESSAGE_TYPE,
+  OCTO_MATCHES,
   PLAYER_WATERMARK_STORAGE_KEY,
   QQ_SELF_LEFT_STORAGE_KEY,
   STORAGE_KEY,
@@ -29,10 +30,11 @@ import {
   type PlayerWatermarkId,
   type PlayerWatermarkMessage,
   type QQSelfLeftMessage,
+  type RequestKickScriptMessage,
   type ThemeMessage,
   type ToggleMessage,
 } from '@/utils/octoRecall';
-import { DEFAULT_GLOBAL_THEME, DEFAULT_KICK_STYLE, DEFAULT_THEME } from '@/utils/octoBeautify';
+import { DEFAULT_GLOBAL_THEME, DEFAULT_KICK_STYLE, DEFAULT_THEME } from '@/utils/octoThemeCatalog';
 import {
   isBuiltInCompanionId,
   isDesktopPetPosition,
@@ -49,9 +51,13 @@ import {
  * and relay storage-backed settings and extension asset URLs over postMessage.
  */
 export default defineContentScript({
-  matches: ['https://im.deepminer.com.cn/*'],
+  matches: [...OCTO_MATCHES],
   runAt: 'document_idle',
   async main() {
+    // Injected on demand from the MAIN world (see octoFullscreenKickLazy):
+    // guarded here so repeated toggles never inject twice.
+    let kickScriptInjected = false;
+
     // Inject the MAIN-world script (runs in the page's JS context).
     await injectScript('/octo-main-world.js', { keepInDom: true });
 
@@ -105,22 +111,19 @@ export default defineContentScript({
     }
 
     function postPlayerWatermark(playerId: PlayerWatermarkId) {
-      const imageUrl =
-        playerId === 'none' ? '' : browser.runtime.getURL(`/${playerId}-watermark.png`);
       const playerImageUrl =
         playerId === 'none'
           ? ''
-          : browser.runtime.getURL(`/player-animation/${playerId}-player.png`);
+          : browser.runtime.getURL(`/player-animation/${playerId}-player.webp`);
       const ballImageUrl =
         playerId === 'none'
           ? ''
-          : browser.runtime.getURL(`/player-animation/${playerId}-ball.png`);
+          : browser.runtime.getURL(`/player-animation/${playerId}-ball.webp`);
       window.postMessage(
         {
           source: MESSAGE_SOURCE,
           type: MESSAGE_TYPE.playerWatermark,
           playerId,
-          imageUrl,
           playerImageUrl,
           ballImageUrl,
         } satisfies PlayerWatermarkMessage,
@@ -340,10 +343,27 @@ export default defineContentScript({
     // message emitted by our MAIN-world renderer.
     window.addEventListener('message', (event: MessageEvent) => {
       if (event.source !== window) return;
-      const data = event.data as DesktopPetPositionMessage | undefined;
+      const data = event.data as
+        | DesktopPetPositionMessage
+        | RequestKickScriptMessage
+        | undefined;
+      if (!data || data.source !== MESSAGE_SOURCE) return;
+
+      // Lazy load of the pixi.js kick effect. Only a content script can call
+      // injectScript, so the MAIN world asks us to do it the first time a
+      // player watermark is switched on. Injecting once per page is enough —
+      // the script registers a page global that survives later toggles.
+      if (data.type === MESSAGE_TYPE.requestKickScript) {
+        if (kickScriptInjected) return;
+        kickScriptInjected = true;
+        void injectScript('/octo-kick-world.js', { keepInDom: true }).catch(() => {
+          // Allow a retry if the resource failed to load.
+          kickScriptInjected = false;
+        });
+        return;
+      }
+
       if (
-        !data ||
-        data.source !== MESSAGE_SOURCE ||
         data.type !== MESSAGE_TYPE.desktopPetPosition ||
         !isDesktopPetPosition(data.position)
       ) {

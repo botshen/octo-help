@@ -1,5 +1,15 @@
 // Shared constants between popup, content script (ISOLATED) and injected script (MAIN world).
 
+/**
+ * The Octo deployment this extension attaches to.
+ *
+ * Single source of truth: `wxt.config.ts` uses it for `host_permissions` /
+ * `web_accessible_resources` and `octo.content.ts` uses it for the content
+ * script's `matches`. Changing the deployment domain should only ever require
+ * editing this one line.
+ */
+export const OCTO_MATCHES = ['https://im.deepminer.com.cn/*'] as const;
+
 /** storage.local key holding the global master switch. Off => behaves like the
  *  extension is uninstalled (recall + beautify + themes + kick all torn down).
  *  Default ON (missing key => enabled). */
@@ -106,6 +116,7 @@ export const MESSAGE_TYPE = {
   composerEnhancement: 'composerEnhancement',
   desktopPet: 'desktopPet',
   desktopPetPosition: 'desktopPetPosition',
+  requestKickScript: 'requestKickScript',
 } as const;
 
 export interface MasterMessage {
@@ -142,8 +153,6 @@ export interface PlayerWatermarkMessage {
   source: typeof MESSAGE_SOURCE;
   type: typeof MESSAGE_TYPE.playerWatermark;
   playerId: PlayerWatermarkId;
-  /** Legacy complete player+ball image, retained for compatibility. */
-  imageUrl: string;
   /** Player cutout with the stationary ball removed. */
   playerImageUrl: string;
   /** Detached ball used by the full-screen kick canvas. */
@@ -187,6 +196,31 @@ export interface DesktopPetPositionMessage {
   position: DesktopPetPosition;
 }
 
+/**
+ * MAIN world -> content script: pull in the pixi.js kick effect on demand.
+ *
+ * The effect lives in its own unlisted entrypoint (`octo-kick-world.js`) so the
+ * ~700 KB WebGL engine is never part of the always-injected main-world bundle.
+ * Only the content script can call `injectScript`, hence the round trip.
+ */
+export interface RequestKickScriptMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: typeof MESSAGE_TYPE.requestKickScript;
+}
+
+/** Page global the on-demand kick script registers itself under. */
+export const KICK_GLOBAL_KEY = '__octoFullscreenKick';
+
+/** Event the kick script dispatches on `window` once its API is registered. */
+export const KICK_READY_EVENT = 'octo:kick-ready';
+
+/** Shape registered on `window[KICK_GLOBAL_KEY]` by the kick script. */
+export interface KickScriptApi {
+  setFullscreenKickStyle(styleId: string): void;
+  setFullscreenKickBallCursor(enabled: boolean): void;
+  setFullscreenKickPlayer(playerId: PlayerWatermarkId, ballImageUrl: string): void;
+}
+
 export type OctoMessage =
   | MasterMessage
   | ToggleMessage
@@ -198,4 +232,5 @@ export type OctoMessage =
   | QQSelfLeftMessage
   | ComposerEnhancementMessage
   | DesktopPetMessage
-  | DesktopPetPositionMessage;
+  | DesktopPetPositionMessage
+  | RequestKickScriptMessage;

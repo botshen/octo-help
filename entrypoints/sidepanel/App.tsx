@@ -38,7 +38,7 @@ import {
   type GlobalThemeDef,
   type ThemeCategory,
   type ThemeDef,
-} from '@/utils/octoBeautify';
+} from '@/utils/octoThemeCatalog';
 import { isBuiltInCompanionId, isStoredDesktopPet } from '@/utils/octoPetState';
 import './App.css';
 

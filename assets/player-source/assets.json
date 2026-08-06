@@ -1,11 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "players": {
     "messi": {
-      "source": "/messi-watermark.png",
-      "player": "/player-animation/messi-player.png",
-      "ball": "/player-animation/messi-ball.png",
-      "ballSpinStrip": "/player-animation/messi-ball-spin-strip.png",
+      "source": "assets/player-source/messi-watermark.png",
+      "player": "/player-animation/messi-player.webp",
+      "ball": "/player-animation/messi-ball.webp",
       "canvas": {
         "width": 374,
         "height": 900
@@ -23,15 +22,12 @@
       "ballCenterNormalized": {
         "x": 0.258021,
         "y": 0.945
-      },
-      "spinFrames": 8,
-      "spinFrameSize": 160
+      }
     },
     "mbappe": {
-      "source": "/mbappe-watermark.png",
-      "player": "/player-animation/mbappe-player.png",
-      "ball": "/player-animation/mbappe-ball.png",
-      "ballSpinStrip": "/player-animation/mbappe-ball-spin-strip.png",
+      "source": "assets/player-source/mbappe-watermark.png",
+      "player": "/player-animation/mbappe-player.webp",
+      "ball": "/player-animation/mbappe-ball.webp",
       "canvas": {
         "width": 681,
         "height": 900
@@ -49,9 +45,7 @@
       "ballCenterNormalized": {
         "x": 0.381791,
         "y": 0.917222
-      },
-      "spinFrames": 8,
-      "spinFrameSize": 160
+      }
     }
   }
 }

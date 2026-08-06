@@ -1,7 +1,5 @@
 import { defineConfig } from 'wxt';
-
-// Octo target host. Adjust matches here if the deployment domain changes.
-const OCTO_MATCHES = ['https://im.deepminer.com.cn/*'];
+import { OCTO_MATCHES } from './utils/octoRecall';
 
 // See https://wxt.dev/api/config.html
 export default defineConfig({
@@ -25,18 +23,18 @@ export default defineConfig({
       default_title: '打开 Octo 聊天增强设置',
     },
     permissions: ['storage', 'unlimitedStorage'],
-    host_permissions: OCTO_MATCHES,
+    host_permissions: [...OCTO_MATCHES],
     web_accessible_resources: [
       {
-        // MAIN-world script plus assets referenced from the page context.
+        // MAIN-world scripts plus assets referenced from the page context.
+        // octo-kick-world.js carries pixi.js and is injected on demand only
+        // (see utils/octoFullscreenKickLazy.ts), keeping it out of every load.
         resources: [
           'octo-main-world.js',
-          'messi-watermark.png',
-          'mbappe-watermark.png',
-          'player-animation/*.png',
-          'player-animation/assets.json',
+          'octo-kick-world.js',
+          'player-animation/*.webp',
         ],
-        matches: OCTO_MATCHES,
+        matches: [...OCTO_MATCHES],
       },
     ],
   },

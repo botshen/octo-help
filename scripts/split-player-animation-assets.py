@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Split the existing player watermarks into reusable player and ball layers."""
+"""Split the player watermarks into reusable player and ball layers.
+
+Inputs live in `assets/player-source/` and are NOT shipped in the extension:
+the full-size watermark PNGs are ~800 KB combined and only the derived layers
+are loaded at runtime.
+
+Outputs:
+  public/player-animation/{player}-{player,ball}.webp  -> shipped, used at runtime
+  assets/player-source/assets.json                     -> build metadata only
+
+The spin strip the earlier revision produced is no longer emitted: the kick
+effect rotates the single ball sprite on the GPU, so the 8-frame strip was
+~510 KB of dead weight in the package.
+"""
 
 from __future__ import annotations
 
@@ -12,11 +25,16 @@ from PIL import Image, ImageChops, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
+SOURCE_DIR = ROOT / "assets" / "player-source"
 OUTPUT = PUBLIC / "player-animation"
 
+# Quality 94 with lossless alpha measured at 0.998 alpha-aware SSIM against the
+# PNG originals while cutting ~75% of the bytes.
+WEBP_QUALITY = 94
+
 PLAYERS = {
-    "messi": PUBLIC / "messi-watermark.png",
-    "mbappe": PUBLIC / "mbappe-watermark.png",
+    "messi": SOURCE_DIR / "messi-watermark.png",
+    "mbappe": SOURCE_DIR / "mbappe-watermark.png",
 }
 
 EXTRA_PLAYER_ERASE_BOXES = {
@@ -25,7 +43,6 @@ EXTRA_PLAYER_ERASE_BOXES = {
 
 ALPHA_COMPONENT_MIN_PIXELS = 10
 BALL_FRAME_SIZE = 160
-BALL_FRAME_COUNT = 8
 
 
 def alpha_components(image: Image.Image) -> list[dict[str, object]]:
@@ -136,19 +153,6 @@ def fit_on_square(image: Image.Image, size: int) -> Image.Image:
     return square
 
 
-def make_spin_strip(ball: Image.Image) -> Image.Image:
-    strip = Image.new(
-        "RGBA",
-        (BALL_FRAME_SIZE * BALL_FRAME_COUNT, BALL_FRAME_SIZE),
-        (0, 0, 0, 0),
-    )
-    for frame in range(BALL_FRAME_COUNT):
-        angle = -(360 / BALL_FRAME_COUNT) * frame
-        rotated = ball.rotate(angle, resample=Image.Resampling.BICUBIC)
-        strip.alpha_composite(rotated, (frame * BALL_FRAME_SIZE, 0))
-    return strip
-
-
 def split_player(player_id: str, source_path: Path) -> dict[str, object]:
     source = Image.open(source_path).convert("RGBA")
     components = alpha_components(source)
@@ -189,18 +193,15 @@ def split_player(player_id: str, source_path: Path) -> dict[str, object]:
         "y": round((top + bottom) / 2, 2),
     }
 
-    player_path = OUTPUT / f"{player_id}-player.png"
-    ball_path = OUTPUT / f"{player_id}-ball.png"
-    strip_path = OUTPUT / f"{player_id}-ball-spin-strip.png"
-    player_layer.save(player_path, optimize=True)
-    ball_square.save(ball_path, optimize=True)
-    make_spin_strip(ball_square).save(strip_path, optimize=True)
+    player_path = OUTPUT / f"{player_id}-player.webp"
+    ball_path = OUTPUT / f"{player_id}-ball.webp"
+    player_layer.save(player_path, quality=WEBP_QUALITY, alpha_quality=100, method=6)
+    ball_square.save(ball_path, quality=WEBP_QUALITY, alpha_quality=100, method=6)
 
     return {
-        "source": f"/{source_path.name}",
+        "source": f"assets/player-source/{source_path.name}",
         "player": f"/player-animation/{player_path.name}",
         "ball": f"/player-animation/{ball_path.name}",
-        "ballSpinStrip": f"/player-animation/{strip_path.name}",
         "canvas": {"width": source.width, "height": source.height},
         "ballSourceBox": {
             "x": left,
@@ -213,21 +214,19 @@ def split_player(player_id: str, source_path: Path) -> dict[str, object]:
             "x": round(ball_center["x"] / source.width, 6),
             "y": round(ball_center["y"] / source.height, 6),
         },
-        "spinFrames": BALL_FRAME_COUNT,
-        "spinFrameSize": BALL_FRAME_SIZE,
     }
 
 
 def main() -> None:
     OUTPUT.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "version": 1,
+        "version": 2,
         "players": {
             player_id: split_player(player_id, source_path)
             for player_id, source_path in PLAYERS.items()
         },
     }
-    (OUTPUT / "assets.json").write_text(
+    (SOURCE_DIR / "assets.json").write_text(
         json.dumps(manifest, ensure_ascii=True, indent=2) + "\n",
         encoding="utf-8",
     )

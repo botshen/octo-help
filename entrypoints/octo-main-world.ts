@@ -3,8 +3,8 @@ import {
   MESSAGE_TYPE,
   type OctoMessage,
 } from '@/utils/octoRecall';
+import { DEFAULT_THEME } from '@/utils/octoThemeCatalog';
 import {
-  DEFAULT_THEME,
   initBeautify,
   setBallCursor,
   setGlobalTheme,
@@ -539,7 +539,7 @@ export default defineUnlistedScript(() => {
     } else if (data.type === MESSAGE_TYPE.playerWatermark) {
       setPlayerWatermark(
         data.playerId,
-        data.playerImageUrl || data.imageUrl,
+        data.playerImageUrl,
         data.ballImageUrl,
       );
     } else if (data.type === MESSAGE_TYPE.ballCursor) {
