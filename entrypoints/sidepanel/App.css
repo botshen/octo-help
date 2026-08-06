@@ -1212,6 +1212,104 @@ select:disabled {
   }
 }
 
+/* ---- feature rows -------------------------------------------------------- */
+
+/* One shape for every feature: state on the left, its own switch on the right,
+   details folded away until the row is expanded. */
+.feature {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.feature-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 13px;
+}
+
+.feature-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+  padding: 12px 4px 12px 13px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.feature-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feature-copy strong {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feature-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 10.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feature-chevron {
+  flex: none;
+  color: var(--subtle);
+  font-size: 15px;
+  transition: transform 120ms ease;
+}
+
+.feature.is-open .feature-chevron {
+  transform: rotate(90deg);
+}
+
+/* A switched-off feature keeps its row legible but stops competing for
+   attention with the ones that are actually doing something. */
+.feature.is-off .section-icon {
+  background: var(--surface-subtle);
+  color: var(--subtle);
+}
+
+.feature.is-off .feature-copy strong {
+  color: var(--muted);
+}
+
+.feature-body {
+  padding-bottom: 4px;
+  border-top: 1px solid var(--line);
+}
+
+.feature-body > .config-row:first-child,
+.feature-body > .pet-card:first-child {
+  border-top: 0;
+}
+
+.feature-body > .choice-row:first-child {
+  padding-top: 12px;
+}
+
+.feature-note {
+  margin: 0;
+  padding: 11px 13px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
 /* ---- AI balance ---------------------------------------------------------- */
 
 /* Top-of-panel balance strip. Sits between the brand header and the master

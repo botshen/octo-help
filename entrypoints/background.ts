@@ -48,9 +48,23 @@ export default defineBackground(() => {
    *    permission for that one origin, not by the page's CORS policy.
    */
 
+  /** The stored config, or null when there is none. */
   async function readConfig(): Promise<AiBalanceConfig | null> {
     const stored = await browser.storage.local.get(AI_BALANCE_CONFIG_STORAGE_KEY);
     return parseStoredAiBalanceConfig(stored[AI_BALANCE_CONFIG_STORAGE_KEY]);
+  }
+
+  /**
+   * The config only when the feature is switched on.
+   *
+   * Off means: no polling, no alarm, no badge, no page pill — but the config
+   * (and the key) stays, so switching back on is one click rather than a
+   * re-setup. Every side effect goes through this, so there is one place where
+   * "off" is enforced.
+   */
+  async function readActiveConfig(): Promise<AiBalanceConfig | null> {
+    const config = await readConfig();
+    return config?.enabled ? config : null;
   }
 
   async function readCache(): Promise<AiBalanceCache | null> {
@@ -164,10 +178,11 @@ export default defineBackground(() => {
       return;
     }
     const low = isBalanceLow(value, config.lowThreshold);
-    // Percentage when we know the total: `1234.56` cannot be shown in four
-    // glyphs, `62%` can. The exact figure goes in the tooltip below.
+    // Percentage when the user wants it and we know a total: `1234.56` cannot be
+    // shown in four glyphs, `62%` can. The exact figure goes in the tooltip.
+    const badgePercent = config.badgePercent ? (cache?.percent ?? null) : null;
     await browser.action
-      .setBadgeText({ text: formatBalanceBadge(value, cache?.percent ?? null) })
+      .setBadgeText({ text: formatBalanceBadge(value, badgePercent) })
       .catch(() => {});
     await browser.action
       .setBadgeBackgroundColor({ color: low ? '#e5484d' : '#6f5ee8' })
@@ -186,7 +201,7 @@ export default defineBackground(() => {
 
   /** Fetch, persist and reflect the result. Returns what happened for the caller. */
   async function refreshBalance(): Promise<AiBalanceProbeResult | null> {
-    const config = await readConfig();
+    const config = await readActiveConfig();
     if (!config) {
       await browser.storage.local.remove([
         AI_BALANCE_CACHE_STORAGE_KEY,
@@ -226,7 +241,7 @@ export default defineBackground(() => {
 
   async function rescheduleAlarm(): Promise<void> {
     if (!browser.alarms) return;
-    const config = await readConfig();
+    const config = await readActiveConfig();
     await browser.alarms.clear(BALANCE_ALARM).catch(() => {});
     if (!config) {
       await updateBadge(null, null);
@@ -243,7 +258,7 @@ export default defineBackground(() => {
 
   /** Refresh on boot only when the cached value has already aged out. */
   async function refreshIfStale(): Promise<void> {
-    const config = await readConfig();
+    const config = await readActiveConfig();
     if (!config) return;
     const cache = await readCache();
     await updateBadge(config, cache);

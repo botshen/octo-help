@@ -18,6 +18,15 @@ export const MASTER_STORAGE_KEY = 'octoMasterEnabled';
 /** storage.local key holding the "show recalled messages" on/off state. Default OFF. */
 export const STORAGE_KEY = 'octoRecallEnabled';
 
+/**
+ * storage.local key for the beautify + theme engine's own on/off switch.
+ *
+ * Separate from the master switch: the panel gives every feature its own toggle,
+ * and message beautifying is a feature like any other. Missing means ON, so
+ * existing users see no change.
+ */
+export const BEAUTIFY_STORAGE_KEY = 'octoBeautifyEnabled';
+
 /** storage.local key holding the selected message theme/skin id. Default cyber-light. */
 export const THEME_STORAGE_KEY = 'octoThemeId';
 
@@ -150,6 +159,11 @@ export interface AiBalancePageState {
  * the stored API key. A path covers every balance API shape we have seen.
  */
 export interface AiBalanceConfig {
+  /**
+   * Feature switch. Off keeps the configuration but stops the polling, the badge
+   * and the page pill — so turning it back on does not mean re-typing the key.
+   */
+  enabled: boolean;
   /** Preset the user picked, or 'custom'. Kept so the panel can re-render the form. */
   presetId: string;
   /** Absolute https URL, already carrying the key when the API expects it in the query. */
@@ -175,6 +189,11 @@ export interface AiBalanceConfig {
   multiplier: number;
   decimals: number;
   refreshMinutes: number;
+  /**
+   * Show the remaining percentage on the toolbar icon instead of the amount.
+   * Only possible when a total is known; falls back to the amount otherwise.
+   */
+  badgePercent: boolean;
   /** Below this the badge turns red. `null` disables the warning. */
   lowThreshold: number | null;
   /** Also show the balance next to the Octo composer. */
@@ -238,6 +257,7 @@ export interface AiBalanceProbeResult {
 export const MESSAGE_TYPE = {
   master: 'master',
   toggle: 'toggle',
+  beautify: 'beautify',
   theme: 'theme',
   globalTheme: 'globalTheme',
   kickStyle: 'kickStyle',
@@ -261,6 +281,13 @@ export interface MasterMessage {
 export interface ToggleMessage {
   source: typeof MESSAGE_SOURCE;
   type: typeof MESSAGE_TYPE.toggle;
+  enabled: boolean;
+}
+
+/** Beautify + theme engine on/off, independent of the master switch. */
+export interface BeautifyMessage {
+  source: typeof MESSAGE_SOURCE;
+  type: typeof MESSAGE_TYPE.beautify;
   enabled: boolean;
 }
 
@@ -390,6 +417,7 @@ export interface CompatReportMessage {
 export type OctoMessage =
   | MasterMessage
   | ToggleMessage
+  | BeautifyMessage
   | ThemeMessage
   | GlobalThemeMessage
   | KickStyleMessage

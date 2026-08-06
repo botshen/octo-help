@@ -7,6 +7,7 @@
 - **Bot 资料卡「全息卡牌」+ 开卡抽卡** —— 把 Bot 资料卡改成 synthwave 落日 banner + 悬浮圆头像 + 信息合并大框 + 创建者置底署名，随鼠标 3D 倾斜；每次打开还会随机抽一个稀有度（宝可梦式档位 N/R/SR/SSR/UR，越稀越少），据此渲染金箔全息卡框、稀有度角标与高档辉光脉动，SR 及以上播放全屏揭晓特效。
 - **全站主题 + 世界杯特效** —— 可切换导航、会话和输入区配色，提供足球射门动画与梅西、姆巴佩水印。
 - **输入框宠物** —— 内置蚂蚁、蜗牛、巫师和僵尸四种巡游宠物，输入或收到新消息时在输入框上沿活动；也可导入 `.zip` / `.codex-pet.zip` 自定义宠物。
+- **统一的开关面板** —— 侧边栏里每项功能都是同一种形态：一行状态 + 自己的开关，细节折叠起来，展开一项自动收起其它项。
 - **AI 余额** —— 填一个大模型网关的 API Key（内置 LLM Gateway 预设，也支持自定义接口 / 从 curl 粘贴）：余额显示在侧边栏顶部（含剩余百分比进度条），扩展图标角标显示**剩余百分比**，可选在 Octo 输入框旁显示；余额低于阈值时转红。
 - **舒适输入框** —— 默认提供三行编辑空间，将工具栏移到右下角，同时保留 Octo 原生的附件、快捷键和全屏展开能力。
 - **GitHub 快捷入口** —— 自动识别消息中的仓库、Issue、PR、Commit、Action、Release 和文件链接，在消息旁提供准确跳转；PR/Issue 编号后即使直接粘着文字也不会把文字带进 URL。
@@ -17,6 +18,7 @@
 ## 原理
 
 - **撤回还原**：Octo 撤回消息时并不删除原文——后端同步时 `revoke=1` 与原始 payload 一起下发，原文保留在页面 React 内存的 `message.content` 上，前端只是把整行渲染成系统提示。插件注入页面 **MAIN world**，从撤回行的 React Fiber 反查出 `message`，克隆一条正常消息行、填入原文并标注「已撤回」。全程只读 props，不改 React 状态、不 patch 原型，可逆。
+- **每个功能一个开关**：美化引擎也有了自己的开关键 `octoBeautifyEnabled`（缺省为开）。关闭时 MAIN world 会 `teardownBeautify()`，并丢弃主题/射门/球星/鼠标这一族设置消息（它们都在驱动已经拆掉的引擎）；重新打开时内容脚本会重放整族设置，和总开关的处理方式一致。
 - **换肤**：主题模型 `base`→`body[theme-mode]`（亮/暗，联动 app 原生暗色）、`skin`→`body[data-octo-skin]`（消息皮肤）。样式由注入的大段 CSS 按这两个属性切换；Side Panel 选中的主题存 `browser.storage.local`，经内容脚本转发到 MAIN world 应用。有 `MutationObserver` 在 app 启动强制亮色时「重申」所选主题（带自写抑制 + 去抖，避免与 app 抢属性打死循环）。
 - **开卡抽卡**：Bot 资料卡弹窗挂载时，美化引擎的 `sync()` 按加权概率 `Math.random()` 抽一个稀有度，写到 `.wk-modal-shell` / `.wk-bot-detail-content` 的 `data-octo-rarity` 上——卡框配色、角标文字（`content: attr(...)`）、辉光强度全部由 CSS 据此渲染。抽卡是「每个卡片实例一次」：同一弹窗重渲染沿用已抽结果，关闭重开则是新实例、重新抽。揭晓特效节点注入 `<body>`（在弹窗 React 树之外，避免被 reconcile 清掉），播完自移除。只读随机 + 自身属性写入，不改源码、不改 React 状态。
 - **桌面宠物**：Side Panel 使用 JSZip 本地校验并解压宠物包，把 manifest 与 spritesheet data URL 存入 `browser.storage.local`；内容脚本把状态转发到 MAIN world，页面脚本按 manifest 播放动作状态机，并把拖拽位置回写 storage。Codex v1 `8 × 9` 与 v2 `8 × 11` atlas 使用官方动作行和逐帧时长；无动画配置的旧 Octo 包仍按 `12 × 13` 第一行播放。
@@ -51,7 +53,9 @@
 - `utils/octoPetSpeech.ts` — 监听当前会话新增消息、提取短摘要、过滤自己/系统/撤回/重复消息。
 - `utils/octoAiBalance.ts` — AI 余额的纯逻辑：预设、配置校验、JSON 取值路径、curl 解析、格式化与页面展示值投影。
 - `utils/octoAiBalancePill.ts` — 输入框右上角的余额小徽标（只接收格式化后的文字）。
-- `entrypoints/sidepanel/` — 侧边栏完整设置：全局开关、主题、特效、球星、桌宠和撤回消息设置，并展示兼容性告警。
+- `entrypoints/sidepanel/` — 侧边栏完整设置：全局开关、AI 余额、主题、特效、球星、桌宠和撤回消息，并展示兼容性告警。
+- `entrypoints/sidepanel/FeatureSection.tsx` — 「一行状态 + 独立开关 + 折叠详情」的通用外壳，每个功能都用它，开关刻意放在展开按钮之外（嵌套可交互元素既不合法，也会让「关掉」和「看设置」变成同一个点击目标）。
+- `entrypoints/sidepanel/AiBalanceCard.tsx` — AI 余额：顶部余额条、配置表单与 background 往返。
 - `assets/player-source/` — 球星水印源图，仅供 `scripts/split-player-animation-assets.py` 使用，**不打包进扩展**。
 
 ## 体积与性能约束
@@ -94,9 +98,10 @@ Octo 是我们不控制的移动目标。改版重命名类名时，受影响的
 2. `octoSettingsParsers.ts`：加解析器，并把 key 加入 `RELAYED_STORAGE_KEYS` 和 `SIMPLE_RELAY_KEYS`。
    → 内容脚本的 relay 表是以这个联合为键的 `Record`，**忘了接线会直接编译失败**。
 3. `octo-main-world.ts`：在 `SETTING_HANDLERS` 表里加一行。
-4. 如果它在页面上留下任何痕迹（样式、属性、节点、监听器、定时器）：在 `PAGE_FEATURES`
+4. 面板 UI 用 `FeatureSection`：功能自己的开关放 `enabled` / `onToggleEnabled`，折叠里放细节。没有真实布尔开关的功能要先补一个 storage key（例如美化引擎的 `octoBeautifyEnabled`），而不是在面板上留一个假开关。
+5. 如果它在页面上留下任何痕迹（样式、属性、节点、监听器、定时器）：在 `PAGE_FEATURES`
    里加一项，`stop` 是必填的。这是「关掉总开关 = 等于没装插件」的结构保证。
-5. `sidepanel/App.tsx`：加 UI。
+6. `sidepanel/App.tsx`：加 UI。
 
 关于解析器：大多数设置只需一个解析函数，因为初始快照和 `onChanged` 变更集形状相同。
 但注意：删除宠物会 **remove** `octoDesktopPetEnabled` 键，变更集里它是 `undefined` ——

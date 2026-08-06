@@ -496,6 +496,9 @@ export default defineUnlistedScript(() => {
   // independent of `enabled` (the actual active flag gated by master).
   let masterEnabled = false;
   let recallEnabled = false;
+  // Beautify has its own switch in the panel, remembered even while suspended so
+  // a master re-enable does not resurrect an engine the user turned off.
+  let beautifyEnabled = true;
   let lastThemeId = DEFAULT_THEME;
 
   // ---- Octo DOM compatibility self-check ---------------------------------
@@ -576,7 +579,10 @@ export default defineUnlistedScript(() => {
     },
     {
       id: 'beautify',
-      start: () => initBeautify(lastThemeId),
+      // Gated on its own toggle, like recall.
+      start: () => {
+        if (beautifyEnabled) initBeautify(lastThemeId);
+      },
       stop: teardownBeautify,
     },
     {
@@ -629,6 +635,16 @@ export default defineUnlistedScript(() => {
    * be up before recall clones rows into the page, and the compat check runs
    * last so it probes a fully mounted extension.
    */
+  /** Settings that only make sense with the beautify engine running. */
+  const BEAUTIFY_DRIVEN_TYPES = new Set<string>([
+    MESSAGE_TYPE.theme,
+    MESSAGE_TYPE.globalTheme,
+    MESSAGE_TYPE.kickStyle,
+    MESSAGE_TYPE.playerWatermark,
+    MESSAGE_TYPE.ballCursor,
+    MESSAGE_TYPE.qqSelfLeft,
+  ]);
+
   const FEATURE_START_ORDER = [
     'beautify',
     'petSpeech',
@@ -661,12 +677,22 @@ export default defineUnlistedScript(() => {
    * even while suspended, everything else dropped while suspended) stays
    * explicit below, because it is sequencing rather than dispatch.
    */
+  /** Beautify on/off. Off tears the engine down; on re-boots it with the last theme. */
+  function applyBeautify(next: boolean): void {
+    if (next === beautifyEnabled) return;
+    beautifyEnabled = next;
+    if (!masterEnabled) return;
+    if (next) initBeautify(lastThemeId);
+    else teardownBeautify();
+  }
+
   const SETTING_HANDLERS: {
     [K in Exclude<OctoMessage['type'], typeof MESSAGE_TYPE.master>]?: (
       message: Extract<OctoMessage, { type: K }>,
     ) => void;
   } = {
     [MESSAGE_TYPE.toggle]: (m) => applyToggle(!!m.enabled),
+    [MESSAGE_TYPE.beautify]: (m) => applyBeautify(!!m.enabled),
     [MESSAGE_TYPE.theme]: (m) => setTheme(m.themeId),
     [MESSAGE_TYPE.globalTheme]: (m) => setGlobalTheme(m.themeId),
     [MESSAGE_TYPE.kickStyle]: (m) => setKickStyle(m.styleId),
@@ -694,6 +720,10 @@ export default defineUnlistedScript(() => {
     // While master is off the extension is suspended: drop all other settings
     // so we never re-inject styles/attributes onto the torn-down page.
     if (!masterEnabled) return;
+    // Same for the beautify family while its own switch is off: these all drive
+    // the torn-down engine, and applying them would re-inject its styles. The
+    // content script replays them when the switch comes back on.
+    if (!beautifyEnabled && BEAUTIFY_DRIVEN_TYPES.has(data.type)) return;
 
     const handler = SETTING_HANDLERS[data.type] as ((message: OctoMessage) => void) | undefined;
     handler?.(data);

@@ -401,3 +401,50 @@ describe('percentage', () => {
     expect(formatPercent(null)).toBe('');
   });
 });
+
+describe('feature switch', () => {
+  it('defaults a fresh config to on, with the percentage badge on', () => {
+    expect(DEFAULT_AI_BALANCE_CONFIG.enabled).toBe(true);
+    expect(DEFAULT_AI_BALANCE_CONFIG.badgePercent).toBe(true);
+  });
+
+  it('treats a config stored before the switch existed as on', () => {
+    // Upgrading must not silently stop polling for someone who already set this
+    // up, so absence means enabled — same rule as the other feature toggles.
+    const stored = validateAiBalanceConfig(config());
+    expect(stored.ok).toBe(true);
+    if (!stored.ok) return;
+    const legacy = { ...stored.config } as Record<string, unknown>;
+    delete legacy.enabled;
+    delete legacy.badgePercent;
+    expect(parseStoredAiBalanceConfig(legacy)).toMatchObject({
+      enabled: true,
+      badgePercent: true,
+    });
+  });
+
+  it('keeps the endpoint but stops feeding the page when switched off', () => {
+    const cache = {
+      value: 12.3456,
+      total: 20,
+      percent: 61.7,
+      unit: '美元💵',
+      fetchedAt: 1,
+      error: '',
+      erroredAt: 0,
+    };
+    // showInPage is still on: the feature switch has to win over it.
+    expect(
+      describeAiBalanceForPage(config({ enabled: false, showInPage: true }), cache),
+    ).toEqual({ text: '', low: false });
+  });
+
+  it('round-trips an explicitly disabled config', () => {
+    const parsed = parseStoredAiBalanceConfig({
+      ...config(),
+      enabled: false,
+      badgePercent: false,
+    });
+    expect(parsed).toMatchObject({ enabled: false, badgePercent: false });
+  });
+});

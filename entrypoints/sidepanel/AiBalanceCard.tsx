@@ -28,6 +28,7 @@ import {
   validateAiBalanceConfig,
   type ConfigProblem,
 } from '@/utils/octoAiBalance';
+import { FeatureSection } from './FeatureSection';
 
 const REFRESH_CHOICES = [5, 15, 30, 60, 180, 720] as const;
 
@@ -120,7 +121,7 @@ export function useAiBalance() {
  */
 export function AiBalanceBanner() {
   const { config, cache, text, percent, low, busy, now, refresh } = useAiBalance();
-  if (!config) return null;
+  if (!config?.enabled) return null;
 
   return (
     <section className={`balance-banner${low ? ' is-low' : ''}`} aria-label="AI 余额">
@@ -155,6 +156,7 @@ export function AiBalanceBanner() {
 
 /** Editable mirror of AiBalanceConfig: numbers stay strings while being typed. */
 interface FormState {
+  enabled: boolean;
   presetId: string;
   apiKey: string;
   url: string;
@@ -166,6 +168,7 @@ interface FormState {
   multiplier: string;
   decimals: string;
   refreshMinutes: number;
+  badgePercent: boolean;
   lowThreshold: string;
   showInPage: boolean;
 }
@@ -173,6 +176,7 @@ interface FormState {
 function emptyForm(): FormState {
   const preset = AI_BALANCE_PRESETS[0];
   return {
+    enabled: true,
     presetId: preset.id,
     apiKey: '',
     url: preset.urlTemplate,
@@ -184,6 +188,7 @@ function emptyForm(): FormState {
     multiplier: '1',
     decimals: '2',
     refreshMinutes: DEFAULT_AI_BALANCE_CONFIG.refreshMinutes,
+    badgePercent: true,
     lowThreshold: '',
     showInPage: false,
   };
@@ -191,6 +196,7 @@ function emptyForm(): FormState {
 
 function formFromConfig(config: AiBalanceConfig): FormState {
   return {
+    enabled: config.enabled,
     presetId: config.presetId,
     // The key is not recoverable from a saved config (it is embedded in the URL
     // or a header), and re-deriving it would mean guessing. Editing shows the
@@ -205,6 +211,7 @@ function formFromConfig(config: AiBalanceConfig): FormState {
     multiplier: String(config.multiplier),
     decimals: String(config.decimals),
     refreshMinutes: config.refreshMinutes,
+    badgePercent: config.badgePercent,
     lowThreshold: config.lowThreshold == null ? '' : String(config.lowThreshold),
     showInPage: config.showInPage,
   };
@@ -216,6 +223,7 @@ function draftFromForm(form: FormState): AiBalanceConfig {
   const usingPreset = preset != null && form.apiKey.trim() !== '';
   const filled = usingPreset ? applyPresetKey(preset, form.apiKey) : null;
   return {
+    enabled: form.enabled,
     presetId: form.presetId,
     url: filled ? filled.url : form.url,
     method: form.method,
@@ -228,6 +236,7 @@ function draftFromForm(form: FormState): AiBalanceConfig {
     multiplier: Number(form.multiplier || '1'),
     decimals: Number(form.decimals || '2'),
     refreshMinutes: form.refreshMinutes,
+    badgePercent: form.badgePercent,
     lowThreshold: form.lowThreshold.trim() === '' ? null : Number(form.lowThreshold),
     showInPage: form.showInPage,
   };
@@ -243,7 +252,15 @@ function failedProbe(error: string): AiBalanceProbeResult {
  * Self-contained on purpose: it owns its storage keys and its background round
  * trips, so App.tsx grows by one line instead of a dozen pieces of state.
  */
-export function AiBalanceCard({ disabled }: { disabled: boolean }) {
+export function AiBalanceCard({
+  disabled,
+  open,
+  onToggleOpen,
+}: {
+  disabled: boolean;
+  open: boolean;
+  onToggleOpen: () => void;
+}) {
   const { config, cache, loaded, percent, text, low } = useAiBalance();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editing, setEditing] = useState(false);
@@ -352,6 +369,26 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
     setNotice('已从 curl 填入，请确认取值路径');
   };
 
+  /** Feature switch: keeps the config (and the key), stops polling/badge/pill. */
+  const toggleEnabled = async () => {
+    const next = !(config?.enabled ?? form.enabled);
+    patch({ enabled: next });
+    if (!config) return;
+    await browser.storage.local.set({
+      [AI_BALANCE_CONFIG_STORAGE_KEY]: { ...config, enabled: next },
+    });
+    if (next) await sendRuntime({ type: RUNTIME_MESSAGE_TYPE.aiBalanceRefresh });
+  };
+
+  const toggleBadgePercent = async () => {
+    const next = !form.badgePercent;
+    patch({ badgePercent: next });
+    if (!config) return;
+    await browser.storage.local.set({
+      [AI_BALANCE_CONFIG_STORAGE_KEY]: { ...config, badgePercent: next },
+    });
+  };
+
   const toggleShowInPage = async () => {
     const next = !form.showInPage;
     patch({ showInPage: next });
@@ -379,16 +416,26 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
     });
   };
 
-  return (
-    <section className="settings-card" aria-labelledby="balance-title">
-      <header className="section-heading">
-        <span className="section-icon is-balance" aria-hidden="true">💰</span>
-        <div>
-          <h2 id="balance-title">AI 余额</h2>
-          <p>查询大模型网关的剩余额度，密钥只存在本机</p>
-        </div>
-      </header>
+  const summary = !config
+    ? '还没有配置，展开填一个 API Key'
+    : !config.enabled
+      ? '已关闭'
+      : cache?.error
+        ? `更新失败：${cache.error}`
+        : [text || '还没有查到余额', formatPercent(percent)].filter(Boolean).join(' · ');
 
+  return (
+    <FeatureSection
+      icon="💰"
+      iconClass="is-balance"
+      title="AI 余额"
+      summary={summary}
+      enabled={config ? config.enabled : undefined}
+      onToggleEnabled={config ? toggleEnabled : undefined}
+      open={open}
+      onToggleOpen={onToggleOpen}
+      disabled={disabled || busy}
+    >
       {config && !editing && (
         <div className="config-row">
           <div className="config-copy">
@@ -402,6 +449,30 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
           <span className={`balance-chip${low ? ' is-low' : ''}`}>
             {percent == null ? text || '—' : `${Math.round(percent)}%`}
           </span>
+        </div>
+      )}
+
+      {config && !editing && (
+        <div className="config-row">
+          <div className="config-copy">
+            <span>图标显示剩余百分比</span>
+            <small>
+              {percent == null
+                ? '关闭则显示缩写金额；当前接口没有总额，暂时算不出百分比'
+                : '角标只放得下 4 个字，关闭则显示缩写金额'}
+            </small>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-label="图标显示剩余百分比"
+            aria-checked={form.badgePercent}
+            className={`switch${form.badgePercent ? ' switch-on' : ''}`}
+            disabled={disabled || busy}
+            onClick={toggleBadgePercent}
+          >
+            <span className="switch-knob" />
+          </button>
         </div>
       )}
 
@@ -521,7 +592,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
             aria-expanded={advanced}
             onClick={() => setAdvanced((open) => !open)}
           >
-            {advanced ? '▾ 高级设置' : '▸ 高级设置'}
+            {advanced ? '收起高级设置' : '展开高级设置'}
           </button>
 
           {advanced && (
@@ -699,7 +770,7 @@ export function AiBalanceCard({ disabled }: { disabled: boolean }) {
           最快 {MIN_REFRESH_MINUTES} 分钟刷新一次 · 密钥不同步、不上传
         </span>
       </div>
-    </section>
+    </FeatureSection>
   );
 }
 

@@ -71,6 +71,7 @@ export const BALANCE_FETCH_TIMEOUT_MS = 8_000;
 export const BALANCE_MAX_RESPONSE_BYTES = 256 * 1024;
 
 export const DEFAULT_AI_BALANCE_CONFIG: AiBalanceConfig = {
+  enabled: true,
   presetId: AI_BALANCE_PRESETS[0].id,
   url: '',
   method: 'GET',
@@ -81,6 +82,7 @@ export const DEFAULT_AI_BALANCE_CONFIG: AiBalanceConfig = {
   multiplier: 1,
   decimals: 2,
   refreshMinutes: DEFAULT_REFRESH_MINUTES,
+  badgePercent: true,
   lowThreshold: null,
   showInPage: false,
 };
@@ -201,6 +203,9 @@ export function validateAiBalanceConfig(
   return {
     ok: true,
     config: {
+      // Missing means on: an older stored config predates the switch, and it was
+      // active back then.
+      enabled: input.enabled !== false,
       presetId: input.presetId || CUSTOM_PRESET_ID,
       url: url!.toString(),
       method: input.method === 'POST' ? 'POST' : 'GET',
@@ -211,6 +216,7 @@ export function validateAiBalanceConfig(
       multiplier,
       decimals: clampDecimals(input.decimals),
       refreshMinutes: clampRefreshMinutes(input.refreshMinutes),
+      badgePercent: input.badgePercent !== false,
       lowThreshold:
         input.lowThreshold == null || !Number.isFinite(Number(input.lowThreshold))
           ? null
@@ -238,6 +244,7 @@ export function parseStoredAiBalanceConfig(raw: unknown): AiBalanceConfig | null
     }
   }
   const result = validateAiBalanceConfig({
+    enabled: value.enabled !== false,
     presetId: typeof value.presetId === 'string' ? value.presetId : CUSTOM_PRESET_ID,
     url: value.url,
     method: value.method === 'POST' ? 'POST' : 'GET',
@@ -249,6 +256,7 @@ export function parseStoredAiBalanceConfig(raw: unknown): AiBalanceConfig | null
     decimals: typeof value.decimals === 'number' ? value.decimals : 2,
     refreshMinutes:
       typeof value.refreshMinutes === 'number' ? value.refreshMinutes : DEFAULT_REFRESH_MINUTES,
+    badgePercent: value.badgePercent !== false,
     lowThreshold: typeof value.lowThreshold === 'number' ? value.lowThreshold : null,
     showInPage: value.showInPage === true,
   });
@@ -483,7 +491,9 @@ export function describeAiBalanceForPage(
   config: AiBalanceConfig | null,
   cache: AiBalanceCache | null,
 ): AiBalancePageState {
-  if (!config?.showInPage || cache?.value == null) return { text: '', low: false };
+  if (!config?.enabled || !config.showInPage || cache?.value == null) {
+    return { text: '', low: false };
+  }
   return {
     text: formatBalance(cache.value, cache.unit || config.unit, config.decimals),
     low: isBalanceLow(cache.value, config.lowThreshold),

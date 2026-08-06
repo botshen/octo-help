@@ -18,6 +18,7 @@ import {
 } from '@/utils/octoRecall';
 import {
   BALL_CURSOR_STORAGE_KEY,
+  BEAUTIFY_STORAGE_KEY,
   BUILT_IN_COMPANION_STORAGE_KEY,
   COMPOSER_ENHANCEMENT_STORAGE_KEY,
   DESKTOP_PET_ENABLED_STORAGE_KEY,
@@ -35,6 +36,7 @@ import {
   SIMPLE_RELAY_KEYS,
   readAiBalancePage,
   readBallCursor,
+  readBeautifyEnabled,
   readBuiltInCompanionFromChange,
   readBuiltInCompanionInitial,
   readComposerEnhancement,
@@ -88,6 +90,8 @@ export default defineContentScript({
       postToPage({ type: MESSAGE_TYPE.master, enabled });
     const postToggle = (enabled: boolean) =>
       postToPage({ type: MESSAGE_TYPE.toggle, enabled });
+    const postBeautify = (enabled: boolean) =>
+      postToPage({ type: MESSAGE_TYPE.beautify, enabled });
     const postTheme = (themeId: string) =>
       postToPage({ type: MESSAGE_TYPE.theme, themeId });
     const postGlobalTheme = (themeId: string) =>
@@ -154,6 +158,7 @@ export default defineContentScript({
 
     let currentMaster = readMaster(stored);
     let currentEnabled = readRecallEnabled(stored);
+    let beautifyEnabled = readBeautifyEnabled(stored);
     let currentTheme = readTheme(stored);
     let currentGlobalTheme = readGlobalTheme(stored);
     let currentKick = readKickStyle(stored);
@@ -172,6 +177,9 @@ export default defineContentScript({
     // and replay them after the master switch reboots the page-side engines.
     // Order is preserved from the original implementation.
     const pushSettings = () => {
+      // Beautify first: while it is off the page-side engine drops theme, kick,
+      // watermark and cursor messages, so its state has to be known before them.
+      postBeautify(beautifyEnabled);
       postKickStyle(currentKick);
       postGlobalTheme(currentGlobalTheme);
       postTheme(currentTheme);
@@ -206,6 +214,13 @@ export default defineContentScript({
      */
     const SIMPLE_RELAYS: Record<SimpleRelayKey, (values: SettingValues) => void> = {
       [STORAGE_KEY]: (v) => postToggle((currentEnabled = readRecallEnabled(v))),
+      [BEAUTIFY_STORAGE_KEY]: (v) => {
+        beautifyEnabled = readBeautifyEnabled(v);
+        postBeautify(beautifyEnabled);
+        // Turning it back on has to replay the theme family, which the page
+        // dropped while the engine was down — same reason master replays.
+        if (beautifyEnabled) pushSettings();
+      },
       [THEME_STORAGE_KEY]: (v) => postTheme((currentTheme = readTheme(v))),
       [GLOBAL_THEME_STORAGE_KEY]: (v) =>
         postGlobalTheme((currentGlobalTheme = readGlobalTheme(v))),

@@ -1,6 +1,7 @@
 import {
   AI_BALANCE_PAGE_STORAGE_KEY,
   BALL_CURSOR_STORAGE_KEY,
+  BEAUTIFY_STORAGE_KEY,
   BUILT_IN_COMPANION_STORAGE_KEY,
   COMPOSER_ENHANCEMENT_STORAGE_KEY,
   DESKTOP_PET_ENABLED_STORAGE_KEY,
@@ -74,6 +75,11 @@ export function readAiBalancePage(v: SettingValues): AiBalancePageState {
 /** Master switch. Missing means ON, so existing users are unaffected. */
 export function readMaster(v: SettingValues): boolean {
   return v[MASTER_STORAGE_KEY] !== false;
+}
+
+/** Beautify + theme engine toggle. Missing means ON, so nothing changes on upgrade. */
+export function readBeautifyEnabled(v: SettingValues): boolean {
+  return v[BEAUTIFY_STORAGE_KEY] !== false;
 }
 
 /** "Show recalled messages" toggle. Missing means OFF. */
@@ -193,6 +199,7 @@ export function readDesktopPetEnabledFromChange(v: SettingValues): boolean {
 export const RELAYED_STORAGE_KEYS = [
   MASTER_STORAGE_KEY,
   STORAGE_KEY,
+  BEAUTIFY_STORAGE_KEY,
   THEME_STORAGE_KEY,
   GLOBAL_THEME_STORAGE_KEY,
   KICK_STYLE_STORAGE_KEY,
@@ -219,6 +226,7 @@ export const RELAYED_STORAGE_KEYS = [
  */
 export const SIMPLE_RELAY_KEYS = [
   STORAGE_KEY,
+  BEAUTIFY_STORAGE_KEY,
   THEME_STORAGE_KEY,
   GLOBAL_THEME_STORAGE_KEY,
   KICK_STYLE_STORAGE_KEY,

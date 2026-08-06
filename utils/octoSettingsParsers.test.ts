@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AI_BALANCE_PAGE_STORAGE_KEY,
   BALL_CURSOR_STORAGE_KEY,
+  BEAUTIFY_STORAGE_KEY,
   BUILT_IN_COMPANION_STORAGE_KEY,
   COMPOSER_ENHANCEMENT_STORAGE_KEY,
   DESKTOP_PET_ENABLED_STORAGE_KEY,
@@ -22,6 +23,7 @@ import {
   SIMPLE_RELAY_KEYS,
   readAiBalancePage,
   readBallCursor,
+  readBeautifyEnabled,
   readBuiltInCompanionFromChange,
   readBuiltInCompanionInitial,
   readComposerEnhancement,
@@ -272,5 +274,18 @@ describe('readAiBalancePage', () => {
     expect(readAiBalancePage({ [AI_BALANCE_PAGE_STORAGE_KEY]: { text: long } }).text).toHaveLength(
       40,
     );
+  });
+});
+
+describe('readBeautifyEnabled', () => {
+  it('defaults to on so upgrading does not turn the themes off', () => {
+    expect(readBeautifyEnabled({})).toBe(true);
+    expect(readBeautifyEnabled({ [BEAUTIFY_STORAGE_KEY]: true })).toBe(true);
+  });
+
+  it('is off only when explicitly false', () => {
+    expect(readBeautifyEnabled({ [BEAUTIFY_STORAGE_KEY]: false })).toBe(false);
+    // A removed key means "back to default", not "off".
+    expect(readBeautifyEnabled({ [BEAUTIFY_STORAGE_KEY]: undefined })).toBe(true);
   });
 });
