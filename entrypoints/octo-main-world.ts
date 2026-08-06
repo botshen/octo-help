@@ -24,6 +24,11 @@ import { getMessageWrapFromItem } from '@/utils/octoMessageFiber';
 import { startOctoPetSpeech } from '@/utils/octoPetSpeech';
 import { startOctoGithubLinks } from '@/utils/octoGithubLink';
 import {
+  startFeatures,
+  stopAllFeatures,
+  type PageFeature,
+} from '@/utils/octoPageFeatures';
+import {
   OCTO_SELECTORS,
   checkOctoCompat,
   documentCompatProbe,
@@ -547,6 +552,85 @@ export default defineUnlistedScript(() => {
   }
 
   /**
+   * Page-side features the master switch controls.
+   *
+   * ORDER IS TEARDOWN ORDER and matches what `applyMaster` used to do inline,
+   * line for line. Adding a feature here is the only place it needs to be
+   * registered; `stop` being mandatory is what makes "master off looks like the
+   * extension is uninstalled" structurally true instead of a convention.
+   */
+  const PAGE_FEATURES: PageFeature[] = [
+    {
+      id: 'recall',
+      // Gated on its own toggle, unlike the rest: the master switch only
+      // restores recall if the user had it on.
+      start: () => {
+        if (recallEnabled) enable();
+      },
+      stop: () => {
+        disable();
+        document.getElementById(STYLE_ID)?.remove();
+      },
+    },
+    {
+      id: 'beautify',
+      start: () => initBeautify(lastThemeId),
+      stop: teardownBeautify,
+    },
+    {
+      // Started by its setting message, not by the master switch.
+      id: 'composerEnhancement',
+      stop: teardownComposerEnhancement,
+    },
+    {
+      // Started by its setting message, not by the master switch.
+      id: 'desktopPet',
+      stop: teardownDesktopPet,
+    },
+    {
+      id: 'petSpeech',
+      start: () => {
+        stopPetSpeech ??= startOctoPetSpeech();
+      },
+      stop: () => {
+        stopPetSpeech?.();
+        stopPetSpeech = undefined;
+      },
+    },
+    {
+      id: 'githubLinks',
+      start: () => {
+        stopGithubLinks ??= startOctoGithubLinks();
+      },
+      stop: () => {
+        stopGithubLinks?.();
+        stopGithubLinks = undefined;
+      },
+    },
+    {
+      id: 'compatCheck',
+      start: scheduleCompatCheck,
+      stop: () => {
+        clearCompatTimers();
+        lastReportedCompat = '';
+      },
+    },
+  ];
+
+  /**
+   * Startup order. NOT the reverse of teardown order: the beautify engine must
+   * be up before recall clones rows into the page, and the compat check runs
+   * last so it probes a fully mounted extension.
+   */
+  const FEATURE_START_ORDER = [
+    'beautify',
+    'petSpeech',
+    'githubLinks',
+    'recall',
+    'compatCheck',
+  ] as const;
+
+  /**
    * Turn the whole extension on/off. Off is meant to look exactly like the
    * extension is uninstalled: recall reverts its DOM and the beautify + theme
    * + full-screen kick engine is fully torn down. On re-enable we re-boot the
@@ -556,28 +640,36 @@ export default defineUnlistedScript(() => {
   function applyMaster(next: boolean): void {
     if (next === masterEnabled) return;
     masterEnabled = next;
-    if (next) {
-      initBeautify(lastThemeId);
-      stopPetSpeech ??= startOctoPetSpeech();
-      stopGithubLinks ??= startOctoGithubLinks();
-      if (recallEnabled) enable();
-      scheduleCompatCheck();
-    } else {
-      disable();
-      document.getElementById(STYLE_ID)?.remove();
-      teardownBeautify();
-      teardownComposerEnhancement();
-      teardownDesktopPet();
-      stopPetSpeech?.();
-      stopPetSpeech = undefined;
-      stopGithubLinks?.();
-      stopGithubLinks = undefined;
-      clearCompatTimers();
-      lastReportedCompat = '';
-    }
+    if (next) startFeatures(PAGE_FEATURES, FEATURE_START_ORDER);
+    else stopAllFeatures(PAGE_FEATURES);
   }
 
   // ---- messaging from the content script ----------------------------------
+
+  /**
+   * Setting message -> page effect.
+   *
+   * A table rather than an if-else chain so adding a setting is one entry in one
+   * place. The control flow around it (master handled first, theme remembered
+   * even while suspended, everything else dropped while suspended) stays
+   * explicit below, because it is sequencing rather than dispatch.
+   */
+  const SETTING_HANDLERS: {
+    [K in Exclude<OctoMessage['type'], typeof MESSAGE_TYPE.master>]?: (
+      message: Extract<OctoMessage, { type: K }>,
+    ) => void;
+  } = {
+    [MESSAGE_TYPE.toggle]: (m) => applyToggle(!!m.enabled),
+    [MESSAGE_TYPE.theme]: (m) => setTheme(m.themeId),
+    [MESSAGE_TYPE.globalTheme]: (m) => setGlobalTheme(m.themeId),
+    [MESSAGE_TYPE.kickStyle]: (m) => setKickStyle(m.styleId),
+    [MESSAGE_TYPE.playerWatermark]: (m) =>
+      setPlayerWatermark(m.playerId, m.playerImageUrl, m.ballImageUrl),
+    [MESSAGE_TYPE.ballCursor]: (m) => setBallCursor(!!m.enabled),
+    [MESSAGE_TYPE.qqSelfLeft]: (m) => setQQSelfLeft(!!m.enabled),
+    [MESSAGE_TYPE.composerEnhancement]: (m) => setComposerEnhancement(!!m.enabled),
+    [MESSAGE_TYPE.desktopPet]: (m) => applyDesktopPetState(m),
+  };
 
   window.addEventListener('message', (event: MessageEvent) => {
     if (event.source !== window) return;
@@ -593,28 +685,8 @@ export default defineUnlistedScript(() => {
     // While master is off the extension is suspended: drop all other settings
     // so we never re-inject styles/attributes onto the torn-down page.
     if (!masterEnabled) return;
-    if (data.type === MESSAGE_TYPE.toggle) {
-      applyToggle(!!data.enabled);
-    } else if (data.type === MESSAGE_TYPE.theme) {
-      setTheme(data.themeId);
-    } else if (data.type === MESSAGE_TYPE.globalTheme) {
-      setGlobalTheme(data.themeId);
-    } else if (data.type === MESSAGE_TYPE.kickStyle) {
-      setKickStyle(data.styleId);
-    } else if (data.type === MESSAGE_TYPE.playerWatermark) {
-      setPlayerWatermark(
-        data.playerId,
-        data.playerImageUrl,
-        data.ballImageUrl,
-      );
-    } else if (data.type === MESSAGE_TYPE.ballCursor) {
-      setBallCursor(!!data.enabled);
-    } else if (data.type === MESSAGE_TYPE.qqSelfLeft) {
-      setQQSelfLeft(!!data.enabled);
-    } else if (data.type === MESSAGE_TYPE.composerEnhancement) {
-      setComposerEnhancement(!!data.enabled);
-    } else if (data.type === MESSAGE_TYPE.desktopPet) {
-      applyDesktopPetState(data);
-    }
+
+    const handler = SETTING_HANDLERS[data.type] as ((message: OctoMessage) => void) | undefined;
+    handler?.(data);
   });
 });
