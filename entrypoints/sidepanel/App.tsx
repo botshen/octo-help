@@ -1031,7 +1031,7 @@ function App() {
         <FeatureSection
           icon="🔗"
           title="链接预览"
-          summary={linkPreviewEnabled ? '自动预览所有链接（标题、描述、图片）' : '已关闭，链接保持原样'}
+          summary={linkPreviewEnabled ? '非 GitHub 链接显示快捷按钮' : '已关闭，链接保持原样'}
           enabled={linkPreviewEnabled}
           onToggleEnabled={() => toggleSetting(LINK_PREVIEW_STORAGE_KEY, 'linkPreviewEnabled')}
           open={openFeature === 'linkPreview'}
@@ -1039,8 +1039,7 @@ function App() {
           disabled={loading}
         >
           <p className="feature-note">
-            检测消息中的链接，自动抓取页面标题、描述和预览图，渲染为富卡片。
-            GitHub PR/Issue 还会展示状态、作者和标签。点击卡片可直接跳转。
+            非 GitHub 链接一条一个按钮，名称由链接地址生成；GitHub 的现有快捷按钮和 PR/Issue 卡片保持不变。
           </p>
         </FeatureSection>
 

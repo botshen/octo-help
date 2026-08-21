@@ -121,8 +121,11 @@ export default defineContentScript({
       postToPage({ type: MESSAGE_TYPE.convFoldEnabled, enabled });
     const postConvFoldState = (foldedByScope: ReturnType<typeof readConvFoldMap>) =>
       postToPage({ type: MESSAGE_TYPE.convFoldState, foldedByScope });
-    const postLinkPreview = (enabled: boolean) =>
+    let linkPreviewEnabled = true;
+    const postLinkPreview = (enabled: boolean) => {
+      linkPreviewEnabled = enabled;
       postToPage({ type: MESSAGE_TYPE.linkPreview, enabled });
+    };
 
     /**
      * The page cannot resolve extension URLs itself, so the asset paths are
@@ -179,6 +182,7 @@ export default defineContentScript({
     let desktopPetPlacement = readDesktopPetPlacement(stored);
     let builtInCompanion = readBuiltInCompanionInitial(stored);
     let desktopPetEnabled = readDesktopPetEnabledInitial(stored);
+    linkPreviewEnabled = readLinkPreviewEnabled(stored);
 
     // MAIN world ignores settings while suspended. Keep the latest values here
     // and replay them after the master switch reboots the page-side engines.
@@ -199,6 +203,7 @@ export default defineContentScript({
       postConvRecentOnly(convRecentOnly);
       postConvFoldState(convFoldMap);
       postConvFoldEnabled(convFoldEnabled);
+      postLinkPreview(linkPreviewEnabled);
       postDesktopPet();
     };
 

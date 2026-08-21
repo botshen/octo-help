@@ -1,16 +1,31 @@
 /**
- * Link unfurling — rich preview cards for external links in messages.
+ * Link actions — rich GitHub cards plus compact actions for other message URLs.
  *
- * Detects any http/https URL in messages, attempts to fetch OG metadata,
- * and renders a rich preview card. Uses DOM methods (not innerHTML) to
- * avoid Chrome's `about:blank#blocked` navigation restriction.
+ * Non-GitHub URLs get one button each with a locally derived label and static
+ * web icon. DOM methods (not innerHTML) avoid Chrome's
+ * `about:blank#blocked` navigation restriction.
  */
 
 import { OCTO_SELECTORS } from './octoSelectors';
+import {
+  externalLinkFallback,
+  extractExternalUrls,
+  extractUrls,
+  isGitHubUrl,
+} from './octoLinkMetadata';
+
+export {
+  externalLinkFallback,
+  extractExternalUrls,
+  extractUrls,
+  isOpaqueSegment,
+  titleFromUrl,
+} from './octoLinkMetadata';
 
 // ─── Constants ─────────────────────────────────────────────────────────────
 
 const ROOT_CLASS = 'octo-link-preview';
+const ACTION_ROOT_CLASS = 'octo-link-actions';
 const STYLE_ID = 'octo-link-preview-style';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
@@ -33,6 +48,12 @@ export interface LinkPreviewData {
 interface CacheEntry {
   data: LinkPreviewData;
   fetchedAt: number;
+}
+
+interface ExternalLinkAction {
+  url: string;
+  title: string;
+  icon: string;
 }
 
 // ─── Cache ─────────────────────────────────────────────────────────────────
@@ -71,44 +92,7 @@ interface OGTags {
   description?: string;
   image?: string;
   siteName?: string;
-}
-
-const MESSAGE_SOURCE_LP = 'octo-enhancer';
-let fetchRequestId = 0;
-const pendingFetchesLP = new Map<string, { resolve: (html: string | null) => void; timer: number }>();
-
-if (typeof window !== 'undefined') {
-  window.addEventListener('message', (event: MessageEvent) => {
-  if (event.source !== window) return;
-  const data = event.data as Record<string, unknown>;
-  if (data?.source === MESSAGE_SOURCE_LP && data?.type === 'fetchUrlResult') {
-    const rid = data.requestId as string;
-    const pending = pendingFetchesLP.get(rid);
-    if (pending) {
-      clearTimeout(pending.timer);
-      pending.resolve((data.html as string) || null);
-      pendingFetchesLP.delete(rid);
-    }
-  }
-});
-}
-
-async function fetchViaBackground(url: string): Promise<string | null> {
-  return new Promise<string | null>((resolve) => {
-    const requestId = `lp-${++fetchRequestId}-${Date.now()}`;
-    const timer = window.setTimeout(() => {
-      pendingFetchesLP.delete(requestId);
-      resolve(null);
-    }, 6000);
-    pendingFetchesLP.set(requestId, { resolve, timer });
-    window.postMessage({ source: MESSAGE_SOURCE_LP, type: 'fetchUrl', url, requestId }, '*');
-  });
-}
-
-async function fetchOGTags(url: string): Promise<OGTags | null> {
-  const html = await fetchViaBackground(url);
-  if (!html) return null;
-  return parseOGFromHTML(html, url);
+  icon?: string;
 }
 
 /** @internal exported for testing */
@@ -131,6 +115,34 @@ export function parseOGFromHTML(html: string, baseUrl: string): OGTags {
     return undefined;
   }
 
+  function getTagAttribute(tag: string, name: string): string | undefined {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}=["']([^"']*)["']`, 'i').exec(tag)?.[1];
+  }
+
+  function resolveSameOriginIcon(): string | undefined {
+    if (!baseUrl) return undefined;
+    let base: URL;
+    try {
+      base = new URL(baseUrl);
+    } catch {
+      return undefined;
+    }
+    const linkTags = html.match(/<link\b[^>]*>/gi) ?? [];
+    for (const tag of linkTags) {
+      const rel = getTagAttribute(tag, 'rel')?.toLowerCase();
+      const href = getTagAttribute(tag, 'href');
+      if (!rel || !href || !/(^|\s)(shortcut\s+)?icon(\s|$)|apple-touch-icon/.test(rel)) continue;
+      try {
+        const icon = new URL(href, base);
+        if (icon.protocol === 'https:' && icon.origin === base.origin) return icon.href;
+      } catch {
+        // Ignore malformed icon declarations and fall back to /favicon.ico.
+      }
+    }
+    return undefined;
+  }
+
   const title = getAttr('og:title') || getAttr('twitter:title') || html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1];
   const description = getAttr('og:description') || getAttr('twitter:description') || getAttr('description');
   const image = getAttr('og:image') || getAttr('twitter:image');
@@ -141,7 +153,13 @@ export function parseOGFromHTML(html: string, baseUrl: string): OGTags {
     try { resolvedImage = new URL(resolvedImage, baseUrl).href; } catch { resolvedImage = undefined; }
   }
 
-  return { title: title?.trim(), description: description?.trim(), image: resolvedImage, siteName: siteName?.trim() };
+  return {
+    title: title?.trim(),
+    description: description?.trim(),
+    image: resolvedImage,
+    siteName: siteName?.trim(),
+    icon: resolveSameOriginIcon(),
+  };
 }
 
 /**
@@ -162,67 +180,6 @@ export function isMeaningfulTitle(value: string, domain?: string): boolean {
   // Just the host, with or without "www.".
   if (domain && trimmed.replace(/^www\./i, '').toLowerCase() === domain.toLowerCase()) return false;
   return true;
-}
-
-/**
- * Segments that carry no meaning for a human reader: opaque ids, hashes and
- * generated file keys. This is a heuristic, not a parse — there is no way to be
- * certain, so it stays conservative and the caller falls back to the domain
- * rather than printing something that looks wrong.
- */
-/** @internal exported for testing */
-export function isOpaqueSegment(segment: string): boolean {
-  if (/^\d+$/.test(segment)) return true;
-  if (/^[0-9a-f]{8,}$/i.test(segment)) return true;
-  // Long, separator-free, mixed letters+digits: a generated key ("Dlbb92GOXdv9PGTSVQBsCg").
-  if (segment.length >= 16 && !/[-_\s]/.test(segment) && /\d/.test(segment) && /[a-z]/i.test(segment)) {
-    return true;
-  }
-  return false;
-}
-
-/**
- * Derive a readable title from a URL when the page will not give us one.
- *
- * Login walls, client-rendered apps and CORS-blocked hosts all return no usable
- * OG metadata, but most of them still keep the human name in the path
- * (`/design/<key>/octo设计稿`, `/Page-Title-<hash>`, `/some-article-title`).
- * Reading it from there beats printing `domain.com/a/b/c`, and it covers every
- * such site at once instead of one hand-written handler per vendor.
- *
- * Returns null when no segment looks like a name, so the caller can fall back.
- */
-/** @internal exported for testing */
-export function titleFromUrl(urlStr: string): string | null {
-  let segments: string[];
-  try {
-    segments = new URL(urlStr).pathname.split('/').filter(Boolean);
-  } catch {
-    return null;
-  }
-
-  // Last segment first: that is where the name sits when a path carries one.
-  for (const segment of segments.reverse()) {
-    let decoded: string;
-    try {
-      decoded = decodeURIComponent(segment);
-    } catch {
-      decoded = segment;
-    }
-
-    // Drop a trailing id suffix (Notion/Medium style: "Page-Title-abc123def").
-    decoded = decoded.replace(/[-_][0-9a-f]{8,}$/i, '');
-    // Drop a page extension, keep the stem.
-    decoded = decoded.replace(/\.(?:html?|php|aspx?|jsp)$/i, '');
-
-    if (!decoded || isOpaqueSegment(decoded)) continue;
-
-    const readable = decoded.replace(/[-_]+/g, ' ').trim();
-    // Needs a letter (any script, so CJK counts) to be a name rather than noise.
-    if (readable.length >= 2 && /\p{L}/u.test(readable)) return readable;
-  }
-
-  return null;
 }
 
 // ─── Label colours ─────────────────────────────────────────────────
@@ -347,46 +304,6 @@ const handlers: PreviewHandler[] = [
       } catch { return null; }
     },
   },
-  {
-    // 2. Everything else — OG tags when the host allows it, otherwise the URL's
-    //    own slug. If neither yields a real name we return null and NO card is
-    //    rendered: a card that only echoes the URL is strictly worse than
-    //    nothing, because the link is already visible in the message right
-    //    above it. Silence is the correct output for "we learned nothing".
-    pattern: /^https?:\/\//,
-    async fetch(match) {
-      const url = match[0];
-      const { domain, favicon } = domainLabel(url);
-      const og = await fetchOGTags(url);
-
-      if (og?.title && isMeaningfulTitle(og.title, domain)) {
-        return {
-          url,
-          title: og.title,
-          description:
-            og.description && isMeaningfulTitle(og.description, domain)
-              ? og.description
-              : undefined,
-          source: 'web',
-          image: og.image,
-          authorAvatar: favicon || undefined,
-          authorName: og.siteName || domain,
-        };
-      }
-
-      // No usable metadata: try the name in the path.
-      const slugTitle = titleFromUrl(url);
-      if (!slugTitle) return null;
-
-      return {
-        url,
-        title: slugTitle,
-        source: 'web',
-        authorAvatar: favicon || undefined,
-        authorName: domain,
-      };
-    },
-  },
 ];
 
 // ─── Preview resolution ────────────────────────────────────────────────────
@@ -412,6 +329,22 @@ function ensureStyle(): void {
   style.id = STYLE_ID;
   style.textContent = `
     .${ROOT_CLASS} { margin-top: 6px; max-width: 420px; }
+    .${ACTION_ROOT_CLASS} { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .octo-link-actions,
+    body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .octo-github-links {
+      justify-content: flex-end;
+    }
+    .${ACTION_ROOT_CLASS} .octo-link-action {
+      display: inline-flex; min-width: 0; max-width: min(100%, 340px); align-items: center; gap: 6px;
+      min-height: 28px; box-sizing: border-box; padding: 4px 9px; border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+      border-radius: 7px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit;
+      font: 600 12px/18px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 0; text-decoration: none;
+    }
+    .${ACTION_ROOT_CLASS} .octo-link-action:hover { background: color-mix(in srgb, currentColor 12%, transparent); }
+    .${ACTION_ROOT_CLASS} .octo-link-action-icon { width: 15px; height: 15px; flex: none; border-radius: 3px; object-fit: contain; }
+    .${ACTION_ROOT_CLASS} .octo-link-action-icon.is-fallback { display: grid; place-items: center; font-size: 12px; line-height: 1; }
+    .${ACTION_ROOT_CLASS} .octo-link-action-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .${ACTION_ROOT_CLASS} .octo-link-action-external { flex: none; opacity: .72; }
     .${ROOT_CLASS} .octo-lp-card {
       display: block; border: 1px solid rgba(31,35,40,0.15); border-radius: 8px;
       background: rgba(246,248,250,0.96); color: #24292f !important;
@@ -465,6 +398,62 @@ function el(tag: string, attrs: Record<string, string | undefined> = {}, childre
     }
   }
   return e;
+}
+
+function linkActionIcon(icon: string): HTMLElement {
+  if (!icon) {
+    return el('span', { class: 'octo-link-action-icon is-fallback', 'aria-hidden': 'true' }, ['🌐']);
+  }
+  const image = el('img', {
+    class: 'octo-link-action-icon',
+    src: icon,
+    alt: '',
+    loading: 'lazy',
+  }) as HTMLImageElement;
+  image.addEventListener(
+    'error',
+    () => image.replaceWith(linkActionIcon('')),
+    { once: true },
+  );
+  return image;
+}
+
+function renderExternalLinkAction(data: ExternalLinkAction): HTMLAnchorElement {
+  const label = el('span', { class: 'octo-link-action-label' }, [data.title]);
+  const action = el(
+    'a',
+    {
+      class: 'octo-link-action',
+      href: data.url,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      title: data.url,
+      'data-octo-link-url': data.url,
+    },
+    [linkActionIcon(data.icon), label, el('span', { class: 'octo-link-action-external', 'aria-hidden': 'true' }, ['↗'])],
+  ) as HTMLAnchorElement;
+  return action;
+}
+
+function renderExternalLinkActions(host: HTMLElement, item: HTMLElement, urls: string[]): void {
+  const existing = item.querySelector<HTMLElement>(`.${ACTION_ROOT_CLASS}`);
+  if (!urls.length) {
+    existing?.remove();
+    return;
+  }
+
+  const signature = urls.join('\n');
+  if (existing?.dataset.signature === signature) return;
+
+  const root = document.createElement('div');
+  root.className = ACTION_ROOT_CLASS;
+  root.dataset.signature = signature;
+  for (const url of urls) {
+    const fallback = externalLinkFallback(url);
+    root.appendChild(renderExternalLinkAction({ url, ...fallback }));
+  }
+  if (existing) existing.replaceWith(root);
+  else host.appendChild(root);
 }
 
 function renderCardNode(data: LinkPreviewData): HTMLElement {
@@ -565,7 +554,12 @@ async function renderMessagePreview(item: HTMLElement): Promise<void> {
   // URL is a broken string that no handler matches and no browser can open.
   // The href attribute is the authoritative full URL.
   const urls = [...new Set([...anchorLinks, ...extractUrls(text)])].filter(isUsableUrl);
-  const previewUrl = urls[0];
+  renderExternalLinkActions(host, item, extractExternalUrls([...anchorLinks, text].join('\n')));
+
+  // GitHub remains on the existing rich-card path. Every other HTTP(S) URL is
+  // rendered as its own compact action above, so a message with several links
+  // gets several buttons without replacing GitHub's dedicated handling.
+  const previewUrl = urls.find(isGitHubUrl);
   if (!previewUrl) { existing?.remove(); return; }
   if (existing?.dataset.previewUrl === previewUrl) return;
 
@@ -602,14 +596,6 @@ async function renderMessagePreview(item: HTMLElement): Promise<void> {
   wrapper.appendChild(renderCardNode(data));
   if (current) current.replaceWith(wrapper);
   else host.appendChild(wrapper);
-}
-
-/** @internal exported for testing */
-export function extractUrls(text: string): string[] {
-  const urlRe = /https?:\/\/[^\s<>"'，。！？；：、)]+/gi;
-  const matches = text.match(urlRe);
-  if (!matches) return [];
-  return [...new Set(matches.map((u) => u.replace(/[.,;:!?，。！？；：、)\]}>]+$/, '')))];
 }
 
 /**
@@ -670,6 +656,7 @@ export function stopOctoLinkPreview(): void {
   scanTimer = null;
   pendingFetches.clear();
   document.querySelectorAll(`.${ROOT_CLASS}`).forEach((node) => node.remove());
+  document.querySelectorAll(`.${ACTION_ROOT_CLASS}`).forEach((node) => node.remove());
   // The bookkeeping attributes are ours too, so they have to go with the nodes:
   // leaving `octoLpEmpty` behind would make a re-enable permanently skip every
   // link that had failed once.

@@ -23,6 +23,8 @@ vi.hoisted(() => {
 });
 import {
   domainLabel,
+  externalLinkFallback,
+  extractExternalUrls,
   extractUrls,
   isMeaningfulTitle,
   isOpaqueSegment,
@@ -69,6 +71,17 @@ describe('parseOGFromHTML', () => {
     const html = '<meta property="og:image" content="/images/hero.png">';
     const result = parseOGFromHTML(html, 'https://site.com/blog/');
     expect(result.image).toBe('https://site.com/images/hero.png');
+  });
+
+  it('uses a same-origin declared favicon for compact link actions', () => {
+    const html = '<link rel="icon" href="/assets/favicon.svg">';
+    expect(parseOGFromHTML(html, 'https://site.com/docs/guide').icon)
+      .toBe('https://site.com/assets/favicon.svg');
+  });
+
+  it('does not load an icon from a third-party origin', () => {
+    const html = '<link rel="icon" href="https://tracking.example/favicon.svg">';
+    expect(parseOGFromHTML(html, 'https://site.com/docs/guide').icon).toBeUndefined();
   });
 
   it('returns undefined for missing properties', () => {
@@ -274,6 +287,50 @@ describe('extractUrls', () => {
   it('handles URLs with paths and query strings', () => {
     const urls = extractUrls('Check https://example.com/path?a=1&b=2');
     expect(urls).toContain('https://example.com/path?a=1&b=2');
+  });
+});
+
+// ─── external link actions ───────────────────────────────────────────────
+
+describe('extractExternalUrls', () => {
+  it('keeps distinct non-GitHub URLs in message order', () => {
+    expect(
+      extractExternalUrls(
+        '文档 https://docs.example.com/guide ，看板 https://linear.app/acme/issue/ABC-1',
+      ),
+    ).toEqual([
+      'https://docs.example.com/guide',
+      'https://linear.app/acme/issue/ABC-1',
+    ]);
+  });
+
+  it('deduplicates URLs and leaves GitHub handling to the existing shortcut feature', () => {
+    expect(
+      extractExternalUrls(
+        [
+          'https://github.com/octo-help/octo-help/pull/42',
+          'https://docs.example.com/guide',
+          'https://docs.example.com/guide。',
+          'https://www.github.com/octo-help/octo-help/issues/7',
+        ].join(' '),
+      ),
+    ).toEqual(['https://docs.example.com/guide']);
+  });
+});
+
+describe('externalLinkFallback', () => {
+  it('uses a readable path title and a local web-icon fallback without a network request', () => {
+    expect(externalLinkFallback('https://www.example.com/guides/hello-world?token=secret')).toEqual({
+      title: 'hello world',
+      icon: '',
+    });
+  });
+
+  it('falls back to the domain when the path contains no readable name', () => {
+    expect(externalLinkFallback('https://www.example.com/')).toEqual({
+      title: 'example.com',
+      icon: '',
+    });
   });
 });
 

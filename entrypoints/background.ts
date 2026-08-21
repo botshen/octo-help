@@ -1,5 +1,5 @@
 import { browser, defineBackground } from '#imports';
-import { MESSAGE_SOURCE, OCTO_MATCHES } from '@/utils/octoShared';
+import { OCTO_MATCHES } from '@/utils/octoShared';
 import { clipToOcto, githubDigestToOcto } from '@/utils/octoBotActions';
 
 const OCTO_URL_PREFIX = OCTO_MATCHES[0].replace('/*', '');
@@ -83,32 +83,6 @@ export default defineBackground(() => {
     } catch (err) {
       console.error('[octo] gh-digest failed', err);
       notify('GitHub 汇总失败', err instanceof Error ? err.message : String(err));
-    }
-  });
-
-  // ─── Cross-origin fetch for link previews ────────────────────────────
-  // Extension background scripts can fetch any URL without CORS restrictions.
-  browser.runtime.onMessage.addListener((message) => {
-    const msg = message as Record<string, unknown>;
-    if (msg?.source === MESSAGE_SOURCE && msg?.type === 'fetchUrl') {
-      const url = msg.url as string;
-      if (typeof url !== 'string' || !/^https?:\/\//.test(url)) return;
-      const requestId = msg.requestId as string;
-
-      return fetch(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-        signal: AbortSignal.timeout(5000),
-      })
-        .then(async (response) => {
-          if (!response.ok)
-            return { source: MESSAGE_SOURCE, type: 'fetchUrlResult' as const, requestId, html: null };
-          const html = await response.text();
-          return { source: MESSAGE_SOURCE, type: 'fetchUrlResult' as const, requestId, html };
-        })
-        .catch(() => ({ source: MESSAGE_SOURCE, type: 'fetchUrlResult' as const, requestId, html: null }));
     }
   });
 

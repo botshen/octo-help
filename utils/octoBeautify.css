@@ -3248,12 +3248,21 @@
             body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-msg-row-header {
                 flex-direction: row-reverse !important;
             }
-            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-markdown,
-            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-reply-block,
-            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-message-text-reply {
+            /* 消息正文、图片和文件卡都是 content 的直接子项，随内容宽度靠右。 */
+            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-msg-row-content > :not(.wk-msg-row-header) {
                 width: -moz-fit-content !important;
                 width: fit-content !important;
                 max-width: 100% !important;
+                margin-left: auto !important;
+                margin-right: 0 !important;
+            }
+            /* 引用预览可能有长 URL；其上限必须与 QQ 气泡一致，不能继承附件的 100%，
+             * 否则 fit-content 会扩展到整行。两种容器同时覆盖新旧 Octo DOM。 */
+            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-msg-row-content .wk-reply-block,
+            body[data-octo-skin="qq2014"]:not([data-octo-qq-self-left]) .wk-msg-row--send:not(:has(.ai-badge)) .wk-msg-row-content .wk-message-text-reply {
+                width: -moz-fit-content !important;
+                width: fit-content !important;
+                max-width: var(--q14-bubble-max) !important;
                 margin-left: auto !important;
                 margin-right: 0 !important;
             }
