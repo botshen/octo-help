@@ -2,7 +2,7 @@
   "name": "octo-chat-enhancer",
   "description": "给 Octo 网页版换套好看的皮肤，顺手把常用操作变快：消息美化与全站换肤、舒适输入框（含快捷 @ 群成员）、GitHub 快捷跳转和桌面宠物。",
   "private": true,
-  "version": "0.6.4",
+  "version": "0.7.0",
   "packageManager": "pnpm@10.11.0",
   "type": "module",
   "scripts": {
