@@ -73,7 +73,9 @@
             body[data-octo-skin="pixel"] {
                 --octo-px-stand: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAnElEQVR42sWW2w2AIAxFGdmxHM4RmmiIRgX6uK0CTfohfRwqUEhJlx1Ut5yBy4apE4Qn5kG9kq+XypB4chAyDkBEt1pJG18L8A6wIKwvCsjfKKDwnV5B9zWYs005Gzv25RzUDW74aQaSy4B61lIVodk/AfqYUQXSekFbC0H7usNeQtBLA/cRAfoO8PmJv+m3CriFti9v1B56aYTkAFdpPEDqUNArAAAAAElFTkSuQmCC");
                 --octo-px-jump: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAlElEQVR42sWW3Q2AIAyEGdmxGM4RSDRGIwpXelQpTfpAae+D8BtC2zbSu+0sXFbOO0G8MAaNEo+XyxC7OAnxA6SUbtdEq1wN8CzQIDCXBRxtFvDKnT6D4WswZ5uiPhj7cg7KC879NBPiMqActTQLAlBDckE71gHQxWAsGt+EQYBczAAM4i6AULy1GGAUZtflVzN9VXZNnhpxvM347gAAAABJRU5ErkJggg==");
-                --octo-px-bubble: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAXCAYAAABqBU3hAAAAXklEQVR42mNgwAT/0TDdANjCP3/+oGB6OQTZQhSA5hDaOgCXJK0dgNdyejhi1AED7oABT4SDIhsOeEE0KIriIQ8GNORwpR36Wj4QOQdnGTLyHDCQUTDgiXC0AKMIAACDwvFd9YHbDQAAAABJRU5ErkJggg==");
+                --octo-px-diver: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAApklEQVR42mNgwA/+E8BkA7ABf/78wYvJtYigwTgsIt0CQkFEkQUg2mbPH7wYWe3gs4CWQURSRFOSXPEmVUrzAtyAHxURWDElGe7/jRsPwBjZggkTFoAxsgXI6kagBSDDiLEApo7iSMZmAcUpCVcKQrOEYdBagGIJepBRxXAcBmKLB8qDB5sF5PoGrGmFgwYKRrcAjzxhC4jQTJEFDES2HqjWwqAIAABl/nTLCR8FmwAAAABJRU5ErkJggg==");
+                --octo-px-diver-jump: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAmElEQVR42mNgwA/+E8BkA7ABf/78wYvJtYigwTgsIt0CQkFEkQUg2mbPH7wYWe3gs4CWQURSRFOSXPEmVUrzAtyAHxURWDElGe7/jRsPwBjZggkTFoAxsgXI6kagBSDDiLEApo7iSMZmAcUpCVcKQrOEIkBTw3FaQk3DaW7BfzwWUCf8VzhoYMXU8AlOw2GYKr6gVauCagAAwgxWDdco7QYAAAAASUVORK5CYII=");
+                --octo-px-bubble: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAwCAYAAABwrHhvAAAAbUlEQVR42u3UwQ2AMAiFYQZxRmfsGB3AAdyAXgnReJLXpv+XcOalBcySfvsZy6rkxqVBYqN2+RGrJMRb8xxC0vz3EASQB5AP4RRrKD9EU5zi5UlfTjo3TxtUGuJrffcJIPsC+RBywAAAAABgeQNP2PCEjIj9WwAAAABJRU5ErkJggg==");
                 --octo-px-seabed: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAARElEQVR42mNgYGD4TxF+caLiPyUYbsCJBR4EFWNTQz0XELKJJAOIwTBLqOMFQk7GJ0+bQKSKAcTGBH1TIja1gzgQicUAWFIAdk3GhwAAAAAASUVORK5CYII=");
                 --octo-px-kelp: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAQCAYAAAArij59AAAAHklEQVR42mNgQID/DCugmAGMMQBeBQOpe9QUaoUqABgJVMGLKQyUAAAAAElFTkSuQmCC");
                 --octo-px-chest: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABgAAAAYCAYAAADgdz34AAAAW0lEQVR42mNgGCDwn0xMnMErIhTIwoQsIttgHBZht+DHDgYwJtVQZH0DawFNg4jKmHQfgNTAggKferLjAJ8FVIlk9GAYfJE8mtEGPg4yDDioggcsJ4+CUUAeAAAVy1+TLuVjewAAAABJRU5ErkJggg==");
@@ -102,13 +104,19 @@
                 --px-ink: #101018;
             }
 
-            /* 三档气泡：直角 + 粗描边 + inset 双色斜面，模拟 8-bit 砖块的 bevel。
-               不用 border-image/滤镜，inset box-shadow 在任何缩放下都不糊。 */
+            /* 三档气泡：直角 + 九宫格贴图边框。早期版本是 inset 双色斜面，
+               但那只是拿 CSS 模仿像素边框，缩放后就不成立了 —— 现在的边框本身
+               就是一张 8×8 的 tile，见下面那段注释。 */
             /* 气泡边框走九宫格贴图，不是 CSS 线条。
                `border: 2px solid` + inset 阴影只是在「模仿」像素框：它没有像素
                图案，浏览器一缩放就不再是像素了。这里 8×8 的 tile 切 2、
                border-width 取 4px，一个源像素正好落 2 个屏幕像素 —— 和 48px
-               精灵是同一套 2px 网格。边条是竖向渐变、横向平铺，拉伸不会变形。 */
+               精灵是同一套 2px 网格。边条是竖向渐变、横向平铺，拉伸不会变形。
+
+               边框声明必须在下面每一档里重写一遍，光靠这条通用规则不够：基础层
+               给气泡的是 .wk-msg-row:has(.ai-badge) .wk-markdown 这类选择器，
+               特异性 (0,4,0)，压得过这里的 (0,2,1)。真机上的表现是「底色换了、
+               九宫格和直角却没生效」—— 底色恰好写在够格的三档规则里。 */
             body[data-octo-skin="pixel"] .wk-markdown,
             body[data-octo-skin="pixel"] .wk-fold-msg-text {
                 border-radius: 0 !important;
@@ -127,17 +135,41 @@
             body[data-octo-skin="pixel"] .wk-msg-row--continue[data-ai-continue="true"] .wk-markdown,
             body[data-octo-skin="pixel"] .wk-fold-msg-text {
                 border-image-source: var(--octo-px-frame-ai) !important;
+                border-radius: 0 !important;
+                border: 4px solid transparent !important;
+                border-image-slice: 2 fill !important;
+                border-image-repeat: stretch !important;
+                box-shadow: 2px 2px 0 rgba(16, 16, 24, 0.20) !important;
+                padding: 6px 10px !important;
+                color: var(--px-ink) !important;
+                image-rendering: pixelated !important;
                 background: var(--px-ai) !important;
                 --octo-bg: var(--px-ai) !important; /* 贴图没加载出来时的兜底底色 */
             }
             body[data-octo-skin="pixel"] .wk-msg-row--send:not(:has(.ai-badge)) .wk-markdown {
                 border-image-source: var(--octo-px-frame-me) !important;
+                border-radius: 0 !important;
+                border: 4px solid transparent !important;
+                border-image-slice: 2 fill !important;
+                border-image-repeat: stretch !important;
+                box-shadow: 2px 2px 0 rgba(16, 16, 24, 0.20) !important;
+                padding: 6px 10px !important;
+                color: var(--px-ink) !important;
+                image-rendering: pixelated !important;
                 background: var(--px-me) !important;
                 --octo-bg: var(--px-me) !important;
                 color: var(--px-ink) !important;
             }
             body[data-octo-skin="pixel"] .wk-msg-row:not(.wk-msg-row--send):not(:has(.ai-badge)):not([data-ai-continue="true"]) .wk-markdown {
                 border-image-source: var(--octo-px-frame-other) !important;
+                border-radius: 0 !important;
+                border: 4px solid transparent !important;
+                border-image-slice: 2 fill !important;
+                border-image-repeat: stretch !important;
+                box-shadow: 2px 2px 0 rgba(16, 16, 24, 0.20) !important;
+                padding: 6px 10px !important;
+                color: var(--px-ink) !important;
+                image-rendering: pixelated !important;
                 background: var(--px-other) !important;
                 --octo-bg: var(--px-other) !important;
                 color: var(--px-ink) !important;
@@ -176,7 +208,11 @@
              * 静止时页面上没有这个节点，所以零重绘。
              * 注意 transform 上不加 !important —— 那会盖掉 keyframes 本身。
              * ------------------------------------------------------- */
+            /* 角色精灵经由这两个变量取，keyframes 只认变量不认具体精灵 —— 换角色
+               只是换变量，不用为每种角色复制一套关键帧。 */
             .octo-pixel-hit {
+                --oph-stand: var(--octo-px-stand);
+                --oph-jump: var(--octo-px-jump);
                 position: fixed;
                 /* 只要压在消息之上就够。原来的 2147483000 会盖住 Octo 的模态框、
                    下拉和所有浮层 —— 装饰不该有那个优先级。 */
@@ -184,7 +220,7 @@
                 width: 56px;
                 /* height 与 --oph-rise 由 spawnPixelHit() 按气泡高度写入 */
                 pointer-events: none;
-                /* 刻意不含 paint：金币要飞出这个盒子、落到消息气泡上，
+                /* 刻意不含 paint：珍珠要飞出这个盒子、落到消息气泡上，
                    paint containment 会把溢出的部分整个裁掉。 */
                 contain: layout style;
             }
@@ -206,19 +242,24 @@
                 background-image: var(--octo-px-chest);
                 animation: oph-chest-face .75s steps(1, end) 1 both, oph-chest-bump .75s steps(1, end) 1 both, oph-chest-flash .75s steps(1, end) 1 both;
             }
+            /* 真人成员派潜水员，AI 派章鱼。data-octo-actor 由 spawnPixelHit 写。 */
+            .octo-pixel-hit[data-octo-actor="human"] {
+                --oph-stand: var(--octo-px-diver);
+                --oph-jump: var(--octo-px-diver-jump);
+            }
             .octo-pixel-hit .oph-hero {
                 left: 4px;
                 bottom: 0;
                 width: 48px;
                 height: 48px;
-                background-image: var(--octo-px-stand);
+                background-image: var(--oph-stand);
                 animation: oph-hero-pose .75s steps(1, end) 1 both, oph-hero-jump .75s steps(1, end) 1 both;
             }
             /* 48px = 24px 源精灵的 2 倍，和角色、宝箱同一个缩放级别。
                之前写的 24px 是 1x，整套皮肤里就它一个是另一种像素密度。 */
             .octo-pixel-hit .oph-pearl {
                 left: 4px;
-                /* 与 COIN_TOP_PX 对应：起点越低，能落的余量越少，
+                /* 与 PEARL_TOP_PX 对应：起点越低，能落的余量越少，
                    而余量的上限由不得越过气泡顶沿这条硬约束决定。 */
                 top: 4px;
                 width: 48px;
@@ -253,9 +294,9 @@
                 50%, 100% { filter: drop-shadow(2px 2px 0 rgba(16, 16, 24, 0.38)); }
             }
             @keyframes oph-hero-pose {
-                0%, 5% { background-image: var(--octo-px-stand); }
-                6%, 84% { background-image: var(--octo-px-jump); }
-                85%, 100% { background-image: var(--octo-px-stand); }
+                0%, 5% { background-image: var(--oph-stand); }
+                6%, 84% { background-image: var(--oph-jump); }
+                85%, 100% { background-image: var(--oph-stand); }
             }
             @keyframes oph-hero-jump {
                 0% { transform: translateY(0) scale(1, 1); }
@@ -274,7 +315,7 @@
                 90% { transform: translateY(0) scale(.96, 1.06); }
                 100% { transform: translateY(0) scale(1, 1); }
             }
-            /* scaleX 在 1 和 .35 之间跳 = 经典 FC 金币的翻面自旋。
+            /* scaleX 在 1 和 .35 之间跳 = 收集物翻面自旋的经典画法。
                位移和自旋必须写在同一个 keyframe 里 —— 两条 transform 动画
                不会叠加，后一条会整个盖掉前一条。
                三条弧线（a 中抛 / b 高抛 / c 低平）形状固定，终点 --oph-x/--oph-y
@@ -371,7 +412,7 @@
              * 结构层（卡框 / holo / 稀有度 / 3D 倾斜）仍归基础层，这里只换
              * 配色与 banner —— 与世界杯皮肤同样的分工。
              * ====================================================== */
-            /* banner：用 CSS 把精灵叠成横版场景（天空 → 地砖 → 云 → 宝箱 → 角色），
+            /* banner：用 CSS 把精灵叠成水下场景（海水 → 海床 → 宝箱 → 角色），
                比手画一张 400×176 的大图省得多，改也只改这几行。
                多背景第一层在最上，所以顺序是从近到远。 */
             body[data-octo-skin="pixel"] .wk-bot-detail-header::before {
@@ -400,7 +441,7 @@
                两层位移量不同（72 / 48），于是自然错开成远近两层。 */
             body[data-octo-skin="pixel"] .wk-bot-detail-header::after {
                 background-image: var(--octo-px-bubble), var(--octo-px-bubble) !important;
-                background-size: 96px 72px, 64px 48px !important;
+                background-size: 96px 144px, 64px 96px !important;
                 background-repeat: repeat-y, repeat-y !important;
                 background-color: transparent !important;
                 /* 这一行不带 !important，是留给 keyframes 的。写成 background 简写
@@ -414,7 +455,7 @@
             }
             @keyframes octo-px-bubble-rise {
                 from { background-position: left 14% top 0, left 68% top 0; }
-                to { background-position: left 14% top -72px, left 68% top -48px; }
+                to { background-position: left 14% top -144px, left 68% top -96px; }
             }
 
             /* 卡壳与面板：直角 + 硬投影，去掉一切圆角和模糊阴影 */
@@ -469,7 +510,7 @@
                 border: 2px solid var(--px-ink) !important;
             }
 
-            /* 主按钮 = 金砖，按下去有 2px 位移，硬投影同步收掉。
+            /* 主按钮 = 金色像素键，按下去有 2px 位移，硬投影同步收掉。
                「发送消息」是个不带 className 的 Semi <Button block>，所以按
                .semi-button-block 命中 —— 卡里的整宽按钮只有主操作是 block，
                铅笔那类图标按钮不是，正好分开。 */
@@ -610,7 +651,7 @@
                 background: none !important;
                 filter: none !important;
             }
-            /* 主按钮 = 金砖。这里同样是不带 className 的 Semi <Button block>。 */
+            /* 主按钮 = 金色像素键。这里同样是不带 className 的 Semi <Button block>。 */
             body[data-octo-skin="pixel"] .wk-userinfo .semi-button-block,
             body[data-octo-skin="pixel"] .wk-userinfo-footer-sendbutton .semi-button {
                 border-radius: 0 !important;
@@ -701,6 +742,183 @@
                 border-radius: 0 !important;
                 color: var(--px-ink) !important;
                 text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.6) !important;
+            }
+
+            /* ========================================================
+             * 像素乐园 · 聊天区水下背景
+             * 铺在 .wk-conversation-content —— 这一层不滚动（世界杯皮肤同样铺在
+             * 这里），所以背景不会跟着消息走，气泡动起来也不会每帧重绘消息。
+             *
+             * 底色要压得比气泡暗一档：三档气泡都是极浅的底，背景要是也一样浅，
+             * 气泡就浮不出来，只能全靠那 4px 边框撑着。
+             * ====================================================== */
+            /* 外层只兜底色。真正承载背景的是下面的滚动层 —— Octo 给
+               .wk-conversation-messages 设了不透明底色，铺在这一层会被它整个盖住
+               （QQ 两套皮肤同样是往滚动层铺的，之前照着 worldcup 铺外层才没生效）。 */
+            body[data-octo-skin="pixel"] .wk-conversation-content {
+                background-color: #2e4666 !important;
+            }
+            body[data-octo-skin="pixel"] .wk-conversation-messages {
+                /* 名字、时间戳、日期分隔这些字直接落在背景上，没有气泡兜底。
+                   底色一压深它们就掉到 AA 线以下，所以在这一层把 Octo 的文本
+                   token 整体翻成浅色；气泡内的正文另有 --px-ink 覆盖，不受影响。 */
+                --wk-text-strong: #eaf2fc !important;
+                --wk-text-secondary: #cfdcee !important;
+                --wk-text-tertiary: #b9cbe2 !important;
+                --wk-icon-default: rgba(230, 238, 250, 0.72) !important;
+                --wk-icon-muted: rgba(230, 238, 250, 0.48) !important;
+                background-color: #2e4666 !important;
+                background-image:
+                    var(--octo-px-bubble),
+                    var(--octo-px-seabed),
+                    repeating-linear-gradient(100deg,
+                        rgba(255, 255, 255, 0) 0px,
+                        rgba(255, 255, 255, 0.055) 84px,
+                        rgba(255, 255, 255, 0.055) 132px,
+                        rgba(255, 255, 255, 0) 224px),
+                    linear-gradient(180deg, #3b5578 0%, #2e4666 46%, #22364f 100%) !important;
+                background-size:
+                    96px 144px,
+                    32px 32px,
+                    auto,
+                    auto !important;
+                background-repeat:
+                    repeat-y,
+                    repeat-x,
+                    repeat,
+                    no-repeat !important;
+                /* 不带 !important：这一行是留给 keyframes 的。写成 background 简写
+                   或给它加 !important，气泡就会钉死在第一帧（见 header::after 那处
+                   注释里记的同一个坑）。 */
+                background-position:
+                    right 4% top 0,
+                    left bottom,
+                    0 0,
+                    0 0;
+                image-rendering: pixelated !important;
+                animation: octo-px-water 26s linear infinite !important;
+            }
+            /* 两列气泡各走满自己 tile 的整数倍高度，首尾才接得上；两列位移量不同
+               才会错开成远近两层。海床和光束保持不动。 */
+            @keyframes octo-px-water {
+                from {
+                    background-position:
+                        right 4% top 0, left bottom, 0 0, 0 0;
+                }
+                to {
+                    background-position:
+                        right 4% top -288px, left bottom, 0 0, 0 0;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                body[data-octo-skin="pixel"] .wk-conversation-messages {
+                    animation: none !important;
+                }
+            }
+
+            /* ---- 非文本消息：文件 / 语音 / 图片 -------------------------
+             * 这些走的是 .wk-message-base-bubble（见 packages/dmworkbase 的
+             * Messages/Base），不是 .wk-markdown，所以之前整套气泡样式都没覆盖到
+             * 它们。它本身没有底色，文字却是深色 —— 浅背景下无所谓，一换成深海
+             * 背景就是深字压深底，直接读不了。补上和文本气泡同一套九宫格。
+             * ---------------------------------------------------------- */
+            body[data-octo-skin="pixel"] .wk-message-base-bubble {
+                border-radius: 0 !important;
+                border: 4px solid transparent !important;
+                border-image-slice: 2 fill !important;
+                border-image-repeat: stretch !important;
+                border-image-source: var(--octo-px-frame-other) !important;
+                background: var(--px-other) !important;
+                color: var(--px-ink) !important;
+                box-shadow: 2px 2px 0 rgba(16, 16, 24, 0.20) !important;
+                image-rendering: pixelated !important;
+            }
+            body[data-octo-skin="pixel"] .wk-message-base-bubble-box.send .wk-message-base-bubble {
+                border-image-source: var(--octo-px-frame-me) !important;
+                background: var(--px-me) !important;
+            }
+            /* 文件卡片内部的字与角标一并压回墨色 —— 它们原本取的是全局文本 token，
+               而那几个 token 在滚动层上已经被翻成浅色了。 */
+            body[data-octo-skin="pixel"] .wk-message-file-name,
+            body[data-octo-skin="pixel"] .wk-message-file-meta,
+            body[data-octo-skin="pixel"] .wk-message-file-action,
+            body[data-octo-skin="pixel"] .wk-message-file-caption {
+                color: var(--px-ink) !important;
+            }
+            body[data-octo-skin="pixel"] .wk-message-file-ext {
+                border-radius: 0 !important;
+                border: 2px solid var(--px-ink) !important;
+                background: var(--px-ai) !important;
+                color: var(--px-ink) !important;
+            }
+            /* 图片本身不该被浅底染色，去掉内距、只留边框当相框 */
+            body[data-octo-skin="pixel"] .wk-message-base-bubble:has(img),
+            body[data-octo-skin="pixel"] .wk-message-base-bubble:has(video) {
+                padding: 0 !important;
+                background: transparent !important;
+            }
+            body[data-octo-skin="pixel"] .wk-message-base-bubble img,
+            body[data-octo-skin="pixel"] .wk-message-base-bubble video {
+                border-radius: 0 !important;
+            }
+
+            /* 引用块：底色要自带，不能靠半透明。它可能落在气泡之外，
+               直接压在深海背景上 —— 半透明黑只会让它更暗。 */
+            body[data-octo-skin="pixel"] .wk-msg-row .wk-reply-block,
+            body[data-octo-skin="pixel"] .wk-msg-row .wk-message-text-reply {
+                background: rgba(255, 255, 255, 0.82) !important;
+                color: var(--px-ink) !important;
+            }
+            body[data-octo-skin="pixel"] .wk-message-text-reply-authorname,
+            body[data-octo-skin="pixel"] .wk-message-text-reply-content {
+                color: var(--px-ink) !important;
+            }
+
+            /* ---- 发言人名字 ------------------------------------------------
+             * 基础层按浅色底配的：AI 名字是紫青流光、自己发的是深绿 #2f9163。
+             * 换成深海底之后这些都读不出来了。特异性要跟基础层对齐 —— 它那几条
+             * 带 :has()，(0,4,0)，比 body[data-octo-skin] .wk-msg-row-sender 高。
+             * ---------------------------------------------------------------- */
+            body[data-octo-skin="pixel"] .wk-msg-row:has(.ai-badge) .wk-msg-row-sender,
+            body[data-octo-skin="pixel"] .wk-msg-row--continue[data-ai-continue="true"] .wk-msg-row-sender {
+                background: none !important;
+                -webkit-background-clip: border-box !important;
+                background-clip: border-box !important;
+                -webkit-text-fill-color: #f8d878 !important;
+                color: #f8d878 !important;
+                animation: none !important;
+                text-shadow: 1px 1px 0 rgba(16, 16, 24, 0.55) !important;
+            }
+            body[data-octo-skin="pixel"] .wk-msg-row--send:not(:has(.ai-badge)) .wk-msg-row-sender {
+                color: #86e8b4 !important;
+                -webkit-text-fill-color: #86e8b4 !important;
+                text-shadow: 1px 1px 0 rgba(16, 16, 24, 0.55) !important;
+            }
+            body[data-octo-skin="pixel"] .wk-msg-row:not(.wk-msg-row--send):not(:has(.ai-badge)):not([data-ai-continue="true"]) .wk-msg-row-sender {
+                color: #eaf2fc !important;
+                -webkit-text-fill-color: #eaf2fc !important;
+                text-shadow: 1px 1px 0 rgba(16, 16, 24, 0.55) !important;
+            }
+
+            /* ---- 时间戳与分割线：直接落在背景上的那几处文字 ----------------
+             * 基础层为暗色主题修过同一个问题，注释见 `.wk-msg-row-timestamp` 那段：
+             * 原生颜色是 rgba(28,28,35,.4) 近黑，且只有 AI 那一档被覆盖过，
+             * 人类/自己档在深底上直接隐形。本皮肤 base 虽是 light，背景却是深海，
+             * 等于把那个坑重走一遍。
+             * AI 档的基础层规则带 :has()，(0,4,0)，所以这里要按档写全才压得过。
+             * ---------------------------------------------------------------- */
+            body[data-octo-skin="pixel"] .wk-msg-row:has(.ai-badge) .wk-msg-row-timestamp,
+            body[data-octo-skin="pixel"] .wk-msg-row--continue[data-ai-continue="true"] .wk-msg-row-timestamp,
+            body[data-octo-skin="pixel"] .wk-msg-row .wk-msg-row-timestamp,
+            body[data-octo-skin="pixel"] .wk-msg-row-timestamp,
+            body[data-octo-skin="pixel"] .wk-msg-row-timestamp-hover {
+                color: #b9cbe2 !important;
+            }
+            /* 「8月27日」「以上为历史消息」这类分隔，同样没有气泡兜底 */
+            body[data-octo-skin="pixel"] .wk-message-split-content,
+            body[data-octo-skin="pixel"] .wk-message-split-line {
+                color: #b9cbe2 !important;
+                border-color: rgba(185, 203, 226, 0.28) !important;
             }
 
 </style>

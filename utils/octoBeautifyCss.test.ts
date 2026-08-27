@@ -62,6 +62,28 @@ describe('message bubble sizing', () => {
 });
 
 describe('pixel skin', () => {
+  it('declares every sprite at an integer multiple of its bitmap size', async () => {
+    // 类型来自 scripts/build-pixel-sprites.d.mts —— 脚本本身保持纯 JS，
+    // 它要能在没有构建步骤的裸 node 下直接跑。
+    const { SPRITES } = await import('../scripts/build-pixel-sprites.mjs');
+    // CSS 里出现的 `--octo-px-<name>` 用了什么 background-size
+    const declared: Record<string, Array<[number, number]>> = {};
+    for (const m of beautifyCss.matchAll(
+      /var\(--octo-px-([a-z-]+)\)[^,;]*?\/ (\d+)px (\d+)px/g,
+    )) {
+      (declared[m[1]] ??= []).push([Number(m[2]), Number(m[3])]);
+    }
+    expect(Object.keys(declared).length).toBeGreaterThan(0);
+    for (const [name, sizes] of Object.entries(declared)) {
+      const rows = (SPRITES as Record<string, string[]>)[name];
+      expect(rows, `${name} 在生成脚本里不存在`).toBeDefined();
+      for (const [w, h] of sizes) {
+        expect(w % rows[0].length, `${name} 宽 ${w} 不是 ${rows[0].length} 的整数倍`).toBe(0);
+        expect(h % rows.length, `${name} 高 ${h} 不是 ${rows.length} 的整数倍`).toBe(0);
+      }
+    }
+  });
+
   const SKIN = 'body[data-octo-skin="pixel"]';
 
   it('inlines every sprite the skin references', () => {
@@ -141,7 +163,7 @@ describe('pixel skin', () => {
     // 气泡竖向平铺，一个循环走满一个 tile 高度，首尾才接得上；两层位移量不同
     // 才会错开成远近两层。改动画就要一起改这两个数。
     expect(beautifyCss).toContain('@keyframes octo-px-bubble-rise {');
-    expect(beautifyCss).toContain('to { background-position: left 14% top -72px, left 68% top -48px; }');
+    expect(beautifyCss).toContain('to { background-position: left 14% top -144px, left 68% top -96px; }');
     const reduced = beautifyCss.slice(beautifyCss.indexOf('@media (prefers-reduced-motion'));
     expect(reduced).toContain('.wk-bot-detail-header::after');
   });
@@ -167,6 +189,42 @@ describe('pixel skin', () => {
     expect(beautifyCss).toContain('--octo-global-accent: #0070ec;');
     // 硬投影：任何 blur 半径都会把它拉出 8-bit
     expect(beautifyCss).toContain('--octo-global-shadow: 3px 3px 0 rgba(16, 16, 24, 0.16);');
+  });
+
+  it('swaps the actor sprite by message origin', () => {
+    // 关键帧只引用 --oph-stand/--oph-jump，具体精灵由 data-octo-actor 决定；
+    // 关键帧里一旦直接写死某个精灵，另一个角色就永远换不过来。
+    expect(beautifyCss).toContain('.octo-pixel-hit[data-octo-actor="human"] {');
+    expect(beautifyCss).toContain('--oph-stand: var(--octo-px-diver);');
+    const [pose] = cssBlocks(/@keyframes oph-hero-pose/g);
+    expect(pose).toContain('var(--oph-stand)');
+    expect(pose).not.toContain('--octo-px-');
+  });
+
+  it('paints the chat backdrop on the scrolling layer', () => {
+    // Octo 给 .wk-conversation-messages 上了不透明底色，所以背景必须落在这一层；
+    // 铺在外层 .wk-conversation-content 上会被它整个盖住，看不见任何效果。
+    const rule = cssBlocks(/body\[data-octo-skin="pixel"\] \.wk-conversation-messages/g)
+      .find((block) => block.includes('background-image'));
+    expect(rule, '滚动层上没有背景图').toBeDefined();
+    expect(rule).toContain('var(--octo-px-seabed)');
+    expect(rule).toMatch(/background-position:[^;!]*;/);
+  });
+
+  it('repeats the frame declarations inside every bubble tier', () => {
+    // 基础层给气泡的选择器带 :has()，特异性 (0,4,0)，压得过
+    // body[data-octo-skin] .wk-markdown 的 (0,2,1)。边框只写在通用规则上时，
+    // 真机上是底色换了、九宫格没出来 —— 因为底色恰好写在够格的三档里。
+    for (const tier of ['ai', 'me', 'other']) {
+      const rule = cssBlocks(new RegExp(`body\\[data-octo-skin="pixel"\\][^{]*?--octo-px-frame-${tier}`, 'g'))
+        .find((block) => block.includes(`--octo-px-frame-${tier}`));
+      const own = beautifyCss.slice(
+        beautifyCss.indexOf(`--octo-px-frame-${tier}) !important;`),
+      ).slice(0, 500);
+      expect(own, `${tier} 档缺少 border-image-slice`).toContain('border-image-slice: 2 fill');
+      expect(own, `${tier} 档缺少直角`).toContain('border-radius: 0');
+      expect(rule ?? own).toBeDefined();
+    }
   });
 
   it('hides the whole scene under reduced motion', () => {

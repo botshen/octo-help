@@ -1097,9 +1097,9 @@ const PEARL_TOP_PX = 4;
  *  below it), i.e. how far down its visible bottom edge sits. */
 const PEARL_ART_BOTTOM_PX = 34;
 /**
- * How far a pearl may fall. The crate occupies the scene's top PIXEL_SPRITE_PX,
+ * How far a pearl may fall. The chest occupies the scene's top PIXEL_SPRITE_PX,
  * so that line is also the bubble's top edge — and a pearl must never cross it.
- * Coins are opaque sprites: landing one *on* the bubble means covering the
+ * Pearls are opaque sprites: landing one *on* the bubble means covering the
  * message with decoration, and a message being obscured while someone reads it
  * matters far more than how the animation looks. So they pile up along the
  * bubble's top edge instead of scattering across its face.
@@ -1155,15 +1155,30 @@ let pixelScrolledAt = 0;
 let pixelScrolling = false;
 let pixelScrollTimer: number | undefined;
 
+/**
+ * AI 消息派章鱼，其它派潜水员。
+ * 判据跟着皮肤的三档气泡走：带 ai-badge 的行、标记了 AI 连续的行，以及折叠的
+ * AI 会话块。判不出来时按"人"算 —— 把人错当成 AI 比反过来更容易让人误会。
+ */
+function isAiMessage(bubble: Element): boolean {
+  if (bubble.matches(OCTO_SELECTORS.foldMessageBody)) return true;
+  const row = bubble.closest(OCTO_SELECTORS.messageRow);
+  if (!row) return false;
+  return (
+    row.querySelector(OCTO_SELECTORS.aiBadge) != null ||
+    row.getAttribute('data-ai-continue') === 'true'
+  );
+}
+
 function spawnPixelHit(bubble: Element): void {
   const r = bubble.getBoundingClientRect();
   if (!r.width || !r.height) return;
-  // The scene spans the bubble: the crate's bottom edge sits on the bubble's
+  // The scene spans the bubble: the chest's bottom edge sits on the bubble's
   // top edge, the character stands on its bottom edge. The previous fixed 144px
-  // box floated the crate ~80px above a one-line message — right next to the
+  // box floated the chest ~80px above a one-line message — right next to the
   // message above it, which is the one it appeared to belong to.
   //
-  // Capped, though: past PIXEL_RISE_MAX the crate stops tracking the top edge
+  // Capped, though: past PIXEL_RISE_MAX the chest stops tracking the top edge
   // and just hangs two character-heights up. A clamped long message is 240px
   // tall and would otherwise ask for a 192px leap in the same 0.75s.
   const height = Math.min(
@@ -1184,17 +1199,18 @@ function spawnPixelHit(bubble: Element): void {
   const fx = document.createElement('div');
   fx.className = PIXEL_HIT_CLASS;
   fx.setAttribute('aria-hidden', 'true');
+  fx.setAttribute('data-octo-actor', isAiMessage(bubble) ? 'ai' : 'human');
   fx.style.left = `${Math.round(left)}px`;
   fx.style.top = `${Math.round(top)}px`;
   fx.style.height = `${height}px`;
-  // Character sits at the bottom, crate at the top — the rise is whatever is
-  // left between them, so the jump always lands on the crate's underside.
+  // Character sits at the bottom, chest at the top — the rise is whatever is
+  // left between them, so the jump always lands on the chest's underside.
   fx.style.setProperty('--oph-rise', `${Math.max(PIXEL_RISE_MIN, height - PIXEL_SPRITE_PX * 2)}px`);
-  // Coins are thrown *at the bubble* and settle on it, rather than looping
+  // Pearls are thrown *at the bubble* and settle on it, rather than looping
   // inside the gutter: signed so they fly toward the message whichever side the
   // scene ended up on, capped so a very wide bubble does not fling them across
   // the whole conversation.
-  // Coins are spread from the bubble's near edge to its far edge. The reach is
+  // Pearls are spread from the bubble's near edge to its far edge. The reach is
   // measured from PEARL_INSET_PX, not from the scene, so ratio 0 already lands
   // inside the bubble rather than in the 8px gap beside it.
   const span = Math.min(Math.round(r.width) + 8, PEARL_REACH_MAX_PX);
@@ -1204,9 +1220,9 @@ function spawnPixelHit(bubble: Element): void {
   // Built node by node rather than with innerHTML: this runs in the page MAIN
   // world, where an innerHTML template becomes an injection sink the moment any
   // part of it stops being a literal (same reasoning as playGachaReveal).
-  const crate = document.createElement('div');
-  crate.className = 'oph-chest';
-  fx.appendChild(crate);
+  const chest = document.createElement('div');
+  chest.className = 'oph-chest';
+  fx.appendChild(chest);
 
   // Each pearl gets its own slice of the spread and rolls inside it. Pure
   // randomness would let them pile onto one spot; fixed positions gave the
@@ -1277,7 +1293,7 @@ function onPixelHover(e: Event): void {
  *
  * It is `position: fixed` at coordinates taken from getBoundingClientRect() the
  * moment it spawned, so the instant the list moves it is pinned to a spot its
- * message has left — a crate and a fistful of pearls hanging over nothing. There
+ * message has left — a chest and a fistful of pearls hanging over nothing. There
  * is no cheap fix for that: following the bubble would mean repositioning every
  * frame. Since nobody is watching a hover flourish while scrolling anyway,
  * dropping it is both the honest and the cheap answer.
